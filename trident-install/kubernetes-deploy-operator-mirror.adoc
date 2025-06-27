@@ -1,0 +1,307 @@
+---
+sidebar: sidebar 
+permalink: trident-get-started/kubernetes-deploy-operator-mirror.html 
+keywords: deploy, Trident, methods, operator, tridentctl, mirrored, registry, registries 
+summary: 您可以手動部署 Trident 操作員來安裝 Trident 。此程序適用於 Trident 所需的容器映像儲存在私有登錄中的安裝。 
+---
+= 手動部署Trident運算子（離線模式）
+:hardbreaks:
+:allow-uri-read: 
+:icons: font
+:imagesdir: ../media/
+
+
+[role="lead"]
+您可以手動部署 Trident 操作員來安裝 Trident 。此程序適用於 Trident 所需的容器映像儲存在私有登錄中的安裝。如果您沒有私有映像登錄，請使用link:kubernetes-deploy-operator.html["標準部署程序"]。
+
+
+
+== Trident 25.02 的重要資訊
+
+* 您必須閱讀下列有關 Trident 的重要資訊。 *
+
+.<strong> 的 Trident </strong> 相關資訊
+[%collapsible%open]
+====
+[]
+=====
+* Kubernetes 1.32 現在支援 Trident 。升級Kubernetes之前先升級Trident。
+* Trident 嚴格強制在 SAN 環境中使用多重路徑組態、建議在 multipath.conf 檔案中使用值 `find_multipaths: no`。
++
+在 multipath.conf 檔案中使用非多重路徑組態或使用 `find_multipaths: yes`或 `find_multipaths: smart`值、將會導致掛載失敗。Trident 建議自 2007 年 21 月 1 日起使用 `find_multipaths: no`。
+
+
+
+=====
+====
+
+
+== 手動部署Trident運算子並安裝Trident
+
+請檢閱link:../trident-get-started/kubernetes-deploy.html["安裝總覽"]以確保您符合安裝先決條件、並為您的環境選擇正確的安裝選項。
+
+.開始之前
+登入 Linux 主機、並確認其正在管理工作中的主機、link:requirements.html["支援的Kubernetes叢集"^]以及您是否擁有必要的 Privileges 。
+
+
+NOTE: 使用 OpenShift 時、請使用 `oc`而非 `kubectl`後續所有範例、並先執行或 `oc login -u kube-admin`以 * 系統： admin* 的身分登入 `oc login -u system:admin`。
+
+[%collapsible%open]
+====
+. 驗證Kubernetes版本：
++
+[listing]
+----
+kubectl version
+----
+. 驗證叢集管理員權限：
++
+[listing]
+----
+kubectl auth can-i '*' '*' --all-namespaces
+----
+. 確認您可以啟動使用Docker Hub映像的Pod、並透過Pod網路連線至儲存系統：
++
+[listing]
+----
+kubectl run -i --tty ping --image=busybox --restart=Never --rm -- \
+  ping <management IP>
+----
+
+
+====
+
+
+=== 步驟1：下載Trident安裝程式套件
+
+Trident 安裝程式套件包含部署 Trident 營運商和安裝 Trident 所需的一切。從下載並解壓縮最新版本link:https://github.com/NetApp/trident/releases/latest["GitHub的_Assets區段"^]的Trident 安裝程式。
+
+[listing]
+----
+wget https://github.com/NetApp/trident/releases/download/v25.02.0/trident-installer-25.02.0.tar.gz
+tar -xf trident-installer-25.02.0.tar.gz
+cd trident-installer
+----
+
+
+=== 步驟 2 ：建立 `TridentOrchestrator` CRD
+
+建立 `TridentOrchestrator`自訂資源定義（ CRD ）。您稍後會建立 `TridentOrchestrator`自訂資源。使用中適當的 CRD YAML 版本 `deploy/crds`建立 `TridentOrchestrator` CRD ：
+
+[listing]
+----
+kubectl create -f deploy/crds/<VERSION>.yaml
+----
+
+
+=== 步驟3：更新操作員中的登錄位置
+
+在 `/deploy/operator.yaml`中，更新 `image: docker.io/netapp/trident-operator:25.02.0` 以反映映像登錄的位置。您 link:../trident-get-started/requirements.html#container-images-and-corresponding-kubernetes-versions["Trident和csi影像"] 可以位於一個登錄或不同的登錄中、但所有 CSI 映像都必須位於同一個登錄中。例如：
+
+* `image: <your-registry>/trident-operator:25.02.0` 如果您的映像全部位於一個登錄中。
+* `image: <your-registry>/netapp/trident-operator:25.02.0` 如果您的 Trident 映像位於與 CSI 映像不同的登錄中。
+
+
+
+
+=== 步驟 4 ：部署 Trident 運算子
+
+Trident 安裝程式提供套件檔案、可用於安裝操作員及建立相關物件。套件檔案是部署操作員及使用預設組態安裝 Trident 的簡單方法。
+
+* 對於運行 Kubernetes 1.24 的羣集，請使用 `bundle_pre_1_25.yaml`。
+* 對於運行 Kubernetes 1.25 或更高版本的羣集，請使用 `bundle_post_1_25.yaml`。
+
+
+.開始之前
+* 根據預設， Trident 安裝程式會在命名空間中部署運算子 `trident`。如果 `trident`命名空間不存在、請使用下列方式建立：
++
+[listing]
+----
+kubectl apply -f deploy/namespace.yaml
+----
+* 若要在命名空間以外的命名空間中部署運算子 `trident`，請 `clusterrolebinding.yaml`使用更新 `serviceaccount.yaml`及 `operator.yaml`產生套件檔案 `kustomization.yaml`。
++
+.. 使用下列命令建立 `kustomization.yaml`、其中 _Kubernetes <bundle.yaml> 版本為 _ `bundle_pre_1_25.yaml` 或 `bundle_post_1_25.yaml`以 Kubernetes 版本為基礎。
++
+[listing]
+----
+cp deploy/kustomization_<bundle.yaml> deploy/kustomization.yaml
+----
+.. 使用以下命令編譯套件（其中 _Kubernetes <bundle.yaml> `bundle_pre_1_25.yaml` 版本或 `bundle_post_1_25.yaml`基於 Kubernetes 版本）。
++
+[listing]
+----
+kubectl kustomize deploy/ > deploy/<bundle.yaml>
+----
+
+
+
+
+.步驟
+. 建立資源並部署營運者：
++
+[listing]
+----
+kubectl create -f deploy/<bundle.yaml>
+----
+. 確認已建立運算子、部署和複本集。
++
+[listing]
+----
+kubectl get all -n <operator-namespace>
+----
+
+
+
+IMPORTANT: Kubernetes叢集中只應有*一個運算子執行個體*。請勿建立Trident營運者的多個部署。
+
+
+
+=== 步驟 5 ：更新中的映像登錄位置 `TridentOrchestrator`
+
+您 link:../trident-get-started/requirements.html#container-images-and-corresponding-kubernetes-versions["Trident和csi影像"] 可以位於一個登錄或不同的登錄中、但所有 CSI 映像都必須位於同一個登錄中。更新 `deploy/crds/tridentorchestrator_cr.yaml`以根據您的登錄組態新增其他位置規格。
+
+[role="tabbed-block"]
+====
+.一個登錄中的映像
+--
+[listing]
+----
+imageRegistry: "<your-registry>"
+autosupportImage: "<your-registry>/trident-autosupport:25.02"
+tridentImage: "<your-registry>/trident:25.02.0"
+----
+--
+.不同登錄中的映像
+--
+[listing]
+----
+imageRegistry: "<your-registry>"
+autosupportImage: "<your-registry>/trident-autosupport:25.02"
+tridentImage: "<your-registry>/trident:25.02.0"
+----
+--
+====
+
+
+=== 步驟 6 ：建立 `TridentOrchestrator`並安裝 Trident
+
+您現在可以建立 `TridentOrchestrator`並安裝 Trident 。或者、您也可以進一步link:kubernetes-customize-deploy.html["自訂您的Trident安裝"]使用規格中的屬性 `TridentOrchestrator`。下列範例顯示Trident與csi映像位於不同登錄中的安裝。
+
+[listing]
+----
+kubectl create -f deploy/crds/tridentorchestrator_cr.yaml
+tridentorchestrator.trident.netapp.io/trident created
+
+kubectl describe torc trident
+
+Name:        trident
+Namespace:
+Labels:      <none>
+Annotations: <none>
+API Version: trident.netapp.io/v1
+Kind:        TridentOrchestrator
+...
+Spec:
+  Autosupport Image:  <your-registry>/trident-autosupport:25.02
+  Debug:              true
+  Image Registry:     <your-registry>
+  Namespace:          trident
+  Trident Image:      <your-registry>/trident:25.02.0
+Status:
+  Current Installation Params:
+    IPv6:                       false
+    Autosupport Hostname:
+    Autosupport Image:          <your-registry>/trident-autosupport:25.02
+    Autosupport Proxy:
+    Autosupport Serial Number:
+    Debug:                      true
+    Http Request Timeout:       90s
+    Image Pull Secrets:
+    Image Registry:       <your-registry>
+    k8sTimeout:           30
+    Kubelet Dir:          /var/lib/kubelet
+    Log Format:           text
+    Probe Port:           17546
+    Silence Autosupport:  false
+    Trident Image:        <your-registry>/trident:25.02.0
+  Message:                Trident installed
+  Namespace:              trident
+  Status:                 Installed
+  Version:                v25.02.0
+Events:
+    Type Reason Age From Message ---- ------ ---- ---- -------Normal
+    Installing 74s trident-operator.netapp.io Installing Trident Normal
+    Installed 67s trident-operator.netapp.io Trident installed
+----
+
+
+== 驗證安裝
+
+驗證安裝的方法有多種。
+
+
+
+=== 使用狀態 `TridentOrchestrator`
+
+的狀態 `TridentOrchestrator`會指出安裝是否成功、並顯示已安裝的 Trident 版本。在安裝期間，從變更 `Installing`為 `Installed`的狀態 `TridentOrchestrator`。如果您觀察到 `Failed`狀態、而操作員本身無法恢復、link:../troubleshooting.html["檢查記錄"]。
+
+[cols="2"]
+|===
+| 狀態 | 說明 
+
+
+| 安裝 | 操作人員正在使用此 CR 安裝 Trident `TridentOrchestrator` 。 
+
+
+| 已安裝 | Trident 已成功安裝。 
+
+
+| 正在解除安裝 | 操作員正在解除安裝 Trident 、因為
+`spec.uninstall=true`。 
+
+
+| 已解除安裝 | Trident 已解除安裝。 
+
+
+| 失敗 | 操作員無法安裝、修補、更新或解除安裝 Trident ；操作員將自動嘗試從此狀態恢復。如果此狀態持續存在、您將需要疑難排解。 
+
+
+| 正在更新 | 營運者正在更新現有的安裝。 
+
+
+| 錯誤 |  `TridentOrchestrator`未使用。另一個已經存在。 
+|===
+
+
+=== 使用Pod建立狀態
+
+您可以檢閱建立的 Pod 狀態、確認 Trident 安裝是否已完成：
+
+[listing]
+----
+kubectl get pods -n trident
+
+NAME                                       READY   STATUS    RESTARTS   AGE
+trident-controller-7d466bf5c7-v4cpw        6/6     Running   0           1m
+trident-node-linux-mr6zc                   2/2     Running   0           1m
+trident-node-linux-xrp7w                   2/2     Running   0           1m
+trident-node-linux-zh2jt                   2/2     Running   0           1m
+trident-operator-766f7b8658-ldzsv          1/1     Running   0           3m
+----
+
+
+=== 使用 `tridentctl`
+
+您可以使用 `tridentctl`檢查已安裝的 Trident 版本。
+
+[listing]
+----
+./tridentctl -n trident version
+
++----------------+----------------+
+| SERVER VERSION | CLIENT VERSION |
++----------------+----------------+
+| 25.02.0        | 25.02.0        |
++----------------+----------------+
+----

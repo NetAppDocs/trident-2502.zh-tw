@@ -1,0 +1,296 @@
+---
+sidebar: sidebar 
+permalink: trident-use/vol-import.html 
+keywords: volumes, import volumes, drivers, tridentctl import, pv, persistent volumes, pvc, disaster recovery, dr, clone, reuse, managed volume, unmanaged volume, managed 
+summary: '您可以使用將現有儲存磁碟區匯入為 Kubernetes PV `tridentctl import` 。' 
+---
+= 匯入磁碟區
+:hardbreaks:
+:allow-uri-read: 
+:icons: font
+:imagesdir: ../media/
+
+
+[role="lead"]
+您可以使用將現有儲存磁碟區匯入為 Kubernetes PV `tridentctl import` 。
+
+
+
+== 總覽與考量
+
+您可以將磁碟區匯入 Trident 、以便：
+
+* 將應用程式容器化、並重新使用其現有的資料集
+* 針對臨時應用程式使用資料集的複本
+* 重建故障的 Kubernetes 叢集
+* 在災難恢復期間移轉應用程式資料
+
+
+.考量
+匯入 Volume 之前、請先檢閱下列考量事項。
+
+* Trident 只能匯入 RW （讀寫）類型的 ONTAP Volume 。DP （資料保護）類型磁碟區是 SnapMirror 目的地磁碟區。您應該先中斷鏡射關係、再將磁碟區匯入 Trident 。
+* 我們建議您在沒有作用中連線的情況下匯入磁碟區。若要匯入使用中的 Volume 、請複製該 Volume 、然後執行匯入。
++
+
+WARNING: 這對區塊磁碟區特別重要、因為 Kubernetes 不會知道先前的連線、而且很容易將作用中的磁碟區附加到 Pod 。這可能導致資料毀損。
+
+* 雖然必須在 PVC 上指定、但 `StorageClass` Trident 在匯入期間不會使用此參數。建立磁碟區時會使用儲存類別、根據儲存特性從可用的集區中選取。由於該磁碟區已經存在、因此在匯入期間不需要選取任何集區。因此、即使磁碟區存在於與 PVC 中指定的儲存類別不相符的後端或集區、匯入也不會失敗。
+* 現有的 Volume 大小是在 PVC 中決定和設定的。儲存驅動程式匯入磁碟區之後、PV會以PVc的ClaimRef建立。
++
+** 回收原則一開始會在 PV 中設定為 `retain`。Kubernetes成功繫結了PVc和PV之後、系統會更新回收原則以符合儲存類別的回收原則。
+** 如果儲存類別的回收原則為、則 `delete`刪除 PV 時、儲存磁碟區將會刪除。
+
+
+* 根據預設， Trident 會管理 PVC 並重新命名後端上的 FlexVol volume 和 LUN 。您可以傳遞 `--no-manage`旗標來匯入未受管理的磁碟區。如果您使用 `--no-manage`、 Trident 在物件生命週期內不會在 PVC 或 PV 上執行任何其他作業。刪除 PV 時不會刪除儲存磁碟區、也會忽略其他操作、例如 Volume Clone 和 Volume resize 。
++
+
+TIP: 如果您想要將Kubernetes用於容器化工作負載、但想要管理Kubernetes以外儲存磁碟區的生命週期、則此選項非常實用。
+
+* 將註釋新增至PVc和PV、這有兩種用途、表示已匯入磁碟區、以及是否管理了PVc和PV。不應修改或移除此附註。
+
+
+
+
+== 匯入 Volume
+
+您可以使用 `tridentctl import`匯入 Volume 。
+
+.步驟
+. 建立永久 Volume Claim （ PVC ）檔案（例如 `pvc.yaml`）、用於建立 PVC 。PVC 文件應包括 `name`、 `namespace`、 `accessModes`和 `storageClassName`。您也可以在 PVC 定義中指定 `unixPermissions`。
++
+以下是最低規格的範例：
+
++
+[source, yaml]
+----
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my_claim
+  namespace: my_namespace
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: my_storage_class
+----
++
+
+WARNING: 請勿包含其他參數、例如 PV 名稱或 Volume 大小。這可能會導致匯入命令失敗。
+
+. 使用 `tridentctl import`命令指定 Trident 後端的名稱、該後端包含磁碟區、以及唯一識別儲存區中磁碟區的名稱（例如： ONTAP FlexVol 、 Element Volume 、 Cloud Volumes Service 路徑）。 `-f`需要引數來指定 PVC 檔案的路徑。
++
+[listing]
+----
+tridentctl import volume <backendName> <volumeName> -f <path-to-pvc-file>
+----
+
+
+
+
+== 範例
+
+請參閱下列 Volume 匯入範例、瞭解支援的驅動程式。
+
+
+
+=== ONTAP NAS 和 ONTAP NAS FlexGroup
+
+Trident 支援使用和 `ontap-nas-flexgroup`驅動程式進行 Volume 匯入 `ontap-nas`。
+
+[NOTE]
+====
+*  `ontap-nas-economy`驅動程式無法匯入及管理 qtree 。
+*  `ontap-nas`和 `ontap-nas-flexgroup`驅動程式不允許重複的磁碟區名稱。
+
+
+====
+使用驅動程式建立的每個磁碟區都 `ontap-nas`是 ONTAP 叢集上的 FlexVol volume 。使用驅動程式匯入 FlexVol 磁碟區 `ontap-nas`的運作方式相同。ONTAP 叢集上已存在的 FlexVol Volume 可匯入為 `ontap-nas` PVC 。同樣地、 FlexGroup Vols 也可以匯入為 `ontap-nas-flexgroup` PVCS 。
+
+.ONTAP NAS 範例
+以下是託管 Volume 和非託管 Volume 匯入的範例。
+
+[role="tabbed-block"]
+====
+.託管 Volume
+--
+以下範例會匯入在名為的後端上 `ontap_nas`命名的 Volume `managed_volume` ：
+
+[listing]
+----
+tridentctl import volume ontap_nas managed_volume -f <path-to-pvc-file>
+
++------------------------------------------+---------+---------------+----------+--------------------------------------+--------+---------+
+|                   NAME                   |  SIZE   | STORAGE CLASS | PROTOCOL |             BACKEND UUID             | STATE  | MANAGED |
++------------------------------------------+---------+---------------+----------+--------------------------------------+--------+---------+
+| pvc-bf5ad463-afbb-11e9-8d9f-5254004dfdb7 | 1.0 GiB | standard      | file     | c5a6f6a4-b052-423b-80d4-8fb491a14a22 | online | true    |
++------------------------------------------+---------+---------------+----------+--------------------------------------+--------+---------+
+----
+--
+.非託管 Volume
+--
+使用 `--no-manage`引數時、 Trident 不會重新命名磁碟區。
+
+下列範例會匯入 `unmanaged_volume` `ontap_nas`後端：
+
+[listing]
+----
+tridentctl import volume nas_blog unmanaged_volume -f <path-to-pvc-file> --no-manage
+
++------------------------------------------+---------+---------------+----------+--------------------------------------+--------+---------+
+|                   NAME                   |  SIZE   | STORAGE CLASS | PROTOCOL |             BACKEND UUID             | STATE  | MANAGED |
++------------------------------------------+---------+---------------+----------+--------------------------------------+--------+---------+
+| pvc-df07d542-afbc-11e9-8d9f-5254004dfdb7 | 1.0 GiB | standard      | file     | c5a6f6a4-b052-423b-80d4-8fb491a14a22 | online | false   |
++------------------------------------------+---------+---------------+----------+--------------------------------------+--------+---------+
+----
+--
+====
+
+
+=== SAN ONTAP
+
+Trident 支援使用和 `ontap-san-economy`驅動程式進行 Volume 匯入 `ontap-san`。
+
+Trident 可以匯入包含單一 LUN 的 ONTAP SAN FlexVol 磁碟區。這與驅動程式一致 `ontap-san`，可為 FlexVol volume 中的每個 PVC 和 LUN 建立 FlexVol volume 。Trident 會匯入 FlexVol volume ，並將其與 PVC 定義相關聯。
+
+.ONTAP SAN 範例
+以下是託管 Volume 和非託管 Volume 匯入的範例。
+
+[role="tabbed-block"]
+====
+.託管 Volume
+--
+對於託管卷， Trident 將 FlexVol volume 重命名爲格式，並將 FlexVol volume 中的 LUN `lun0` 重命名爲 `pvc-<uuid>`。
+
+下列範例會匯入 `ontap-san-managed`後端上的 FlexVol volume `ontap_san_default` ：
+
+[listing]
+----
+tridentctl import volume ontapsan_san_default ontap-san-managed -f pvc-basic-import.yaml -n trident -d
+
++------------------------------------------+--------+---------------+----------+--------------------------------------+--------+---------+
+|                   NAME                   |  SIZE  | STORAGE CLASS | PROTOCOL |             BACKEND UUID             | STATE  | MANAGED |
++------------------------------------------+--------+---------------+----------+--------------------------------------+--------+---------+
+| pvc-d6ee4f54-4e40-4454-92fd-d00fc228d74a | 20 MiB | basic         | block    | cd394786-ddd5-4470-adc3-10c5ce4ca757 | online | true    |
++------------------------------------------+--------+---------------+----------+--------------------------------------+--------+---------+
+----
+--
+.非託管 Volume
+--
+下列範例會匯入 `unmanaged_example_volume` `ontap_san`後端：
+
+[listing]
+----
+tridentctl import volume -n trident san_blog unmanaged_example_volume -f pvc-import.yaml --no-manage
++------------------------------------------+---------+---------------+----------+--------------------------------------+--------+---------+
+|                   NAME                   |  SIZE   | STORAGE CLASS | PROTOCOL |             BACKEND UUID             | STATE  | MANAGED |
++------------------------------------------+---------+---------------+----------+--------------------------------------+--------+---------+
+| pvc-1fc999c9-ce8c-459c-82e4-ed4380a4b228 | 1.0 GiB | san-blog      | block    | e3275890-7d80-4af6-90cc-c7a0759f555a | online | false   |
++------------------------------------------+---------+---------------+----------+--------------------------------------+--------+---------+
+----
+[WARNING]
+====
+如果 LUN 對應至與 Kubernetes 節點 IQN 共用 IQN 的 igroup 、則會收到錯誤訊息： `LUN already mapped to initiator(s) in this group`。您需要移除啟動器或取消對應 LUN 、才能匯入磁碟區。
+
+image:./san-import-igroup.png["對應至 iqn 和叢集 iqn 的 LUN 影像。"]
+
+====
+--
+====
+
+
+=== 元素
+
+Trident 支援使用驅動程式的 NetApp Element 軟體和 NetApp HCI Volume 匯入 `solidfire-san`。
+
+
+NOTE: Element驅動程式支援重複的Volume名稱。不過、如果有重複的磁碟區名稱、 Trident 會傳回錯誤。因應措施是複製磁碟區、提供唯一的磁碟區名稱、然後匯入複製的磁碟區。
+
+.元素範例
+以下示例將在後端導入 `element-managed`卷 `element_default`。
+
+[listing]
+----
+tridentctl import volume element_default element-managed -f pvc-basic-import.yaml -n trident -d
+
++------------------------------------------+--------+---------------+----------+--------------------------------------+--------+---------+
+|                   NAME                   |  SIZE  | STORAGE CLASS | PROTOCOL |             BACKEND UUID             | STATE  | MANAGED |
++------------------------------------------+--------+---------------+----------+--------------------------------------+--------+---------+
+| pvc-970ce1ca-2096-4ecd-8545-ac7edc24a8fe | 10 GiB | basic-element | block    | d3ba047a-ea0b-43f9-9c42-e38e58301c49 | online | true    |
++------------------------------------------+--------+---------------+----------+--------------------------------------+--------+---------+
+----
+
+
+=== Google Cloud Platform
+
+Trident 支援使用驅動程式進行 Volume 匯入 `gcp-cvs`。
+
+
+NOTE: 若要在 Google Cloud Platform 中匯入以 NetApp Cloud Volumes Service 為後盾的 Volume 、請依其 Volume 路徑識別該 Volume 。Volume 路徑是磁碟區匯出路徑的一部分、位於之後 `:/`。例如，如果匯出路徑為，則 `10.0.0.1:/adroit-jolly-swift`磁碟區路徑為 `adroit-jolly-swift`。
+
+.Google Cloud Platform 範例
+以下範例會在後端 `gcpcvs_YEppr`以的 Volume 路徑匯入 `gcp-cvs` Volume `adroit-jolly-swift` 。
+
+[listing]
+----
+tridentctl import volume gcpcvs_YEppr adroit-jolly-swift -f <path-to-pvc-file> -n trident
+
++------------------------------------------+--------+---------------+----------+--------------------------------------+--------+---------+
+|                   NAME                   |  SIZE  | STORAGE CLASS | PROTOCOL |             BACKEND UUID             | STATE  | MANAGED |
++------------------------------------------+--------+---------------+----------+--------------------------------------+--------+---------+
+| pvc-a46ccab7-44aa-4433-94b1-e47fc8c0fa55 | 93 GiB | gcp-storage   | file     | e1a6e65b-299e-4568-ad05-4f0a105c888f | online | true    |
++------------------------------------------+--------+---------------+----------+--------------------------------------+--------+---------+
+----
+
+
+=== Azure NetApp Files
+
+Trident 支援使用驅動程式進行 Volume 匯入 `azure-netapp-files`。
+
+
+NOTE: 若要匯入 Azure NetApp Files Volume 、請依磁碟區路徑識別該磁碟區。Volume 路徑是磁碟區匯出路徑的一部分、位於之後 `:/`。例如，如果掛載路徑爲，則 `10.0.0.2:/importvol1`卷路徑爲 `importvol1`。
+
+.Azure NetApp Files 範例
+以下示例使用卷路徑 `importvol1`導入 `azure-netapp-files`後端上的卷 `azurenetappfiles_40517`。
+
+[listing]
+----
+tridentctl import volume azurenetappfiles_40517 importvol1 -f <path-to-pvc-file> -n trident
+
++------------------------------------------+---------+---------------+----------+--------------------------------------+--------+---------+
+|                   NAME                   |  SIZE   | STORAGE CLASS | PROTOCOL |             BACKEND UUID             | STATE  | MANAGED |
++------------------------------------------+---------+---------------+----------+--------------------------------------+--------+---------+
+| pvc-0ee95d60-fd5c-448d-b505-b72901b3a4ab | 100 GiB | anf-storage   | file     | 1c01274f-d94b-44a3-98a3-04c953c9a51e | online | true    |
++------------------------------------------+---------+---------------+----------+--------------------------------------+--------+---------+
+----
+
+
+=== Google Cloud NetApp Volumes
+
+Trident 支援使用驅動程式進行 Volume 匯入 `google-cloud-netapp-volumes`。
+
+.Google Cloud NetApp Volumes 範例
+以下示例將使用 Volume `testvoleasiaeast1` 在後端導入一個 `google-cloud-netapp-volumes` Volume `backend-tbc-gcnv1` 。
+
+[listing]
+----
+tridentctl import volume backend-tbc-gcnv1 "testvoleasiaeast1" -f < path-to-pvc> -n trident
+
++------------------------------------------+---------+----------------------+----------+--------------------------------------+--------+---------+
+|                   NAME                   |  SIZE   | STORAGE CLASS        | PROTOCOL |             BACKEND UUID             | STATE  | MANAGED |
++------------------------------------------+---------+----------------------+----------+--------------------------------------+--------+---------+
+| pvc-a69cda19-218c-4ca9-a941-aea05dd13dc0 |  10 GiB | gcnv-nfs-sc-identity | file     | 8c18cdf1-0770-4bc0-bcc5-c6295fe6d837 | online | true    |
++------------------------------------------+---------+----------------------+----------+--------------------------------------+--------+---------+
+----
+下列範例會在兩個磁碟區位於同一個區域時匯入 `google-cloud-netapp-volumes` Volume ：
+
+[listing]
+----
+tridentctl import volume backend-tbc-gcnv1 "projects/123456789100/locations/asia-east1-a/volumes/testvoleasiaeast1" -f <path-to-pvc> -n trident
+
++------------------------------------------+---------+----------------------+----------+--------------------------------------+--------+---------+
+|                   NAME                   |  SIZE   | STORAGE CLASS        | PROTOCOL |             BACKEND UUID             | STATE  | MANAGED |
++------------------------------------------+---------+----------------------+----------+--------------------------------------+--------+---------+
+| pvc-a69cda19-218c-4ca9-a941-aea05dd13dc0 |  10 GiB | gcnv-nfs-sc-identity | file     | 8c18cdf1-0770-4bc0-bcc5-c6295fe6d837 | online | true    |
++------------------------------------------+---------+----------------------+----------+--------------------------------------+--------+---------+
+----

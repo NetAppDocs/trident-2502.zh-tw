@@ -1,0 +1,80 @@
+---
+sidebar: sidebar 
+permalink: trident-use/ontap-nas.html 
+keywords: trident backend, ontap nas, ontap-nas, ontap-nas-economy, ontap-nas-flexgroups, fsx, drivers, access modes, rwo, rwx, rwp, rwop, file system 
+summary: 瞭解如何使用ONTAP NetApp NAS驅動程式設定功能的功能。ONTAP 
+---
+= ONTAP NAS 驅動程式概觀
+:hardbreaks:
+:allow-uri-read: 
+:icons: font
+:imagesdir: ../media/
+
+
+[role="lead"]
+深入瞭解如何使用ONTAP 功能性和功能性NAS驅動程式來設定功能性的後端。ONTAP Cloud Volumes ONTAP
+
+
+
+== ONTAP NAS 驅動程式詳細資料
+
+Trident 提供下列 NAS 儲存驅動程式、可與 ONTAP 叢集進行通訊。支援的存取模式包括： _ReadWriteOnce_ （ rwo ）、 _ReadOnlyMany （ ROX ）、 _ReadWriteMany （ rwx ）、 _ReadWriteOncePod （ RWOP_ ）。
+
+[cols="2, 1, 1, 2, 2"]
+|===
+| 驅動程式 | 傳輸協定 | Volume模式 | 支援的存取模式 | 支援的檔案系統 
+
+
+| `ontap-nas`  a| 
+NFS SMB
+ a| 
+檔案系統
+ a| 
+Rwo 、 ROX 、 rwx 、 RWOP
+ a| 
+" `nfs` 、、 `smb`
+
+
+
+| `ontap-nas-economy`  a| 
+NFS SMB
+ a| 
+檔案系統
+ a| 
+Rwo 、 ROX 、 rwx 、 RWOP
+ a| 
+" `nfs` 、、 `smb`
+
+
+
+| `ontap-nas-flexgroup`  a| 
+NFS SMB
+ a| 
+檔案系統
+ a| 
+Rwo 、 ROX 、 rwx 、 RWOP
+ a| 
+" `nfs` 、、 `smb`
+
+|===
+[WARNING]
+====
+*  `ontap-san-economy`僅當持續容量使用量計數預期高於link:https://docs.netapp.com/us-en/ontap/volumes/storage-limits-reference.html["支援的 ONTAP Volume 限制"^]時才使用。
+* 僅在持續磁碟區使用量計數預期高於且 `ontap-san-economy`無法使用驅動程式時才link:https://docs.netapp.com/us-en/ontap/volumes/storage-limits-reference.html["支援的 ONTAP Volume 限制"^]使用 `ontap-nas-economy`。
+* 如果您預期需要資料保護、災難恢復或行動力、請勿使用 `ontap-nas-economy`。
+* NetApp 不建議在所有 ONTAP 驅動程式中使用 FlexVol 自動擴充， ONTAP SAN 除外。作為因應措施， Trident 支援使用快照保留，並據此擴充 FlexVol 磁碟區。
+
+
+====
+
+
+== 使用者權限
+
+Trident 預期會以 ONTAP 或 SVM 管理員的身分執行、通常使用叢集使用者或 `vsadmin` SVM 使用者、或是使用 `admin`具有相同角色的不同名稱的使用者。
+
+對於用於 NetApp ONTAP 部署的 Amazon FSX 、 Trident 預期會以 ONTAP 或 SVM 管理員的身分、使用叢集使用者或 `vsadmin` SVM 使用者、或是具有相同角色的不同名稱的使用者來執行 `fsxadmin`。 `fsxadmin`使用者只能有限地取代叢集管理使用者。
+
+
+NOTE: 如果您使用此 `limitAggregateUsage`參數、則需要叢集管理權限。將 Amazon FSX for NetApp ONTAP 搭配 Trident 使用時、此 `limitAggregateUsage`參數將無法與和 `fsxadmin`使用者帳戶搭配 `vsadmin`使用。如果您指定此參數、組態作業將會失敗。
+
+雖然可以在 ONTAP 中建立更具限制性的角色、讓 Trident 驅動程式可以使用、但我們不建議這樣做。Trident的大多數新版本都會呼叫額外的API、而這些API必須納入考量、使升級變得困難且容易出錯。

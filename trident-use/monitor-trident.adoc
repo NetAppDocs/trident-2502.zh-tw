@@ -1,0 +1,180 @@
+---
+sidebar: sidebar 
+permalink: trident-use/monitor-trident.html 
+keywords: telemetry, Trident, monitor, metrics, health, volume usage, autosupport 
+summary: Trident 提供一組 Prometheus 指標端點、您可以用來監控 Trident 的效能。 
+---
+= 監控 Trident
+:hardbreaks:
+:allow-uri-read: 
+:icons: font
+:imagesdir: ../media/
+
+
+[role="lead"]
+Trident 提供一組 Prometheus 指標端點、可用於監控 Trident 效能。
+
+
+
+== 總覽
+
+Trident 提供的計量可讓您執行下列動作：
+
+* 保留 Trident 健全狀況和組態的索引標籤。您可以檢查作業的成功程度、以及是否能如預期般與後端進行通訊。
+* 檢查後端使用資訊、並瞭解後端上配置的磁碟區數量、以及所耗用的空間量等。
+* 維護可用後端配置的磁碟區數量對應。
+* 追蹤效能。您可以查看 Trident 與後端通訊和執行作業所需的時間。
+
+
+
+NOTE: 根據預設、 Trident 的度量會公開在端點的 `/metrics`目標連接埠上 `8001`。安裝Trident時*預設會啟用這些度量。
+
+.您需要的產品
+* 安裝 Trident 的 Kubernetes 叢集。
+* Prometheus執行個體。這可以是 https://github.com/prometheus-operator/prometheus-operator["容器化Prometheus部署"^]或，您可以選擇將 Prometheus 作爲運行 https://prometheus.io/download/["原生應用程式"^]。
+
+
+
+
+== 步驟1：定義Prometheus目標
+
+您應該定義 Prometheus 目標、以收集指標、並取得 Trident 管理的後端、建立的磁碟區等相關資訊。這 https://netapp.io/2020/02/20/prometheus-and-trident/["部落格"^]將說明如何搭配 Trident 使用 Prometheus 和 Grafana 來擷取計量。部落格會說明如何在 Kubernetes 叢集中以營運者的身份執行 Prometheus 、以及如何建立 ServiceMonitor 來取得 Trident 指標。
+
+
+
+== 步驟2：建立Prometheus ServiceMonitor
+
+若要使用 Trident 度量、您應該建立 Prometheus ServiceMonitor 、以監控 `trident-csi`服務並在連接埠上接聽 `metrics`。ServiceMonitor範例如下所示：
+
+[source, yaml]
+----
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: trident-sm
+  namespace: monitoring
+  labels:
+    release: prom-operator
+spec:
+  jobLabel: trident
+  selector:
+    matchLabels:
+      app: controller.csi.trident.netapp.io
+  namespaceSelector:
+    matchNames:
+      - trident
+  endpoints:
+    - port: metrics
+      interval: 15s
+----
+此 ServiceMonitor 定義會擷取服務傳回的度量 `trident-csi`、並特別尋找 `metrics`服務的端點。因此、 Prometheus 現在已設定為瞭解 Trident 的指標。
+
+除了可直接從 Trident 取得的指標之外、 kibelet 還會透過自己的指標端點來公開許多 `kubelet_volume_*`指標。Kubelet可提供有關所附加磁碟區、Pod及其處理的其他內部作業的資訊。請參閱 https://kubernetes.io/docs/concepts/cluster-administration/monitoring/["請按這裡"^]。
+
+
+
+== 步驟3：使用PromQL查詢Trident度量
+
+PromQL適用於建立傳回時間序列或表格資料的運算式。
+
+以下是一些您可以使用的PromQL查詢：
+
+
+
+=== 取得Trident健全狀況資訊
+
+* ** 來自 Trident 的 HTTP 2XX 回應百分比 **
+
+
+[listing]
+----
+(sum (trident_rest_ops_seconds_total_count{status_code=~"2.."} OR on() vector(0)) / sum (trident_rest_ops_seconds_total_count)) * 100
+----
+* ** Trident 透過狀態代碼的 REST 回應百分比 **
+
+
+[listing]
+----
+(sum (trident_rest_ops_seconds_total_count) by (status_code)  / scalar (sum (trident_rest_ops_seconds_total_count))) * 100
+----
+* ** 由 Trident 執行之作業的平均持續時間（以毫秒為單位） **
+
+
+[listing]
+----
+sum by (operation) (trident_operation_duration_milliseconds_sum{success="true"}) / sum by (operation) (trident_operation_duration_milliseconds_count{success="true"})
+----
+
+
+=== 取得 Trident 使用資訊
+
+* 平均Volume大小*
+
+
+[listing]
+----
+trident_volume_allocated_bytes/trident_volume_count
+----
+* 每個後端配置的Volume空間總計*
+
+
+[listing]
+----
+sum (trident_volume_allocated_bytes) by (backend_uuid)
+----
+
+
+=== 取得個別Volume使用量
+
+
+NOTE: 只有同時收集kubelet度量時、才會啟用此功能。
+
+* 每個Volume的已用空間百分比*
+
+
+[listing]
+----
+kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes * 100
+----
+
+
+== 瞭解 Trident AutoSupport 遙測
+
+根據預設、 Trident 會在每日步調中、將 Prometheus 指標和基本後端資訊傳送至 NetApp 。
+
+* 若要停止 Trident 傳送 Prometheus 度量和基本後端資訊至 NetApp 、請在 Trident 安裝期間傳遞 `--silence-autosupport`旗標。
+* Trident 也可以透過將容器記錄傳送至 NetApp 隨選支援 `tridentctl send autosupport`。您需要觸發 Trident 來上傳其記錄檔。在提交日誌之前，您應該接受 NetApp 的https://www.netapp.com/company/legal/privacy-policy/["隱私權政策"^]。
+* 除非另有說明、否則 Trident 會從過去 24 小時擷取記錄。
+* 您可以使用旗標指定記錄保留時間範圍 `--since`。例如 `tridentctl send autosupport --since=1h`：。這些資訊會透過安裝在 Trident 旁邊的容器收集和傳送 `trident-autosupport`。您可以在上取得容器映像 https://hub.docker.com/r/netapp/trident-autosupport["Trident AutoSupport 的"^]。
+* Trident AutoSupport 無法收集或傳輸個人識別資訊（PII）或個人資訊。隨附 https://www.netapp.com/us/media/enduser-license-agreement-worldwide.pdf["EULA"^] 不適用於 Trident 容器映像本身的。您可以深入瞭解 NetApp 對資料安全與信任的承諾 https://www.netapp.com/pdf.html?item=/media/14114-enduserlicenseagreementworldwidepdf.pdf["請按這裡"^]。
+
+
+Trident 傳送的有效負載範例如下：
+
+[source, yaml]
+----
+---
+items:
+  - backendUUID: ff3852e1-18a5-4df4-b2d3-f59f829627ed
+    protocol: file
+    config:
+      version: 1
+      storageDriverName: ontap-nas
+      debug: false
+      debugTraceFlags: null
+      disableDelete: false
+      serialNumbers:
+        - nwkvzfanek_SN
+      limitVolumeSize: ""
+    state: online
+    online: true
+----
+* 此資訊將傳送至NetApp的「不只是」端點。AutoSupport AutoSupport如果您使用私有登錄來儲存容器映像、則可以使用此 `--image-registry`旗標。
+* 您也可以產生安裝Yaml檔案來設定Proxy URL。您可以使用來建立 YAML 檔案、並在中新增 `--proxy-url`容器的引數 `trident-autosupport`來 `trident-deployment.yaml`完成此 `tridentctl install --generate-custom-yaml`作業。
+
+
+
+
+== 停用 Trident 計量
+
+若要 ** 停用報告的 ** 度量、您應該產生自訂的 YAML （使用 `--generate-custom-yaml`旗標）、然後加以編輯、以移除 `--metrics`容器所叫用的旗標 `trident-main`。

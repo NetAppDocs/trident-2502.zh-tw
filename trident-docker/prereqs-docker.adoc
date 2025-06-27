@@ -1,0 +1,265 @@
+---
+sidebar: sidebar 
+permalink: trident-docker/prereqs-docker.html 
+keywords: deploy, Trident, docker, trident for docker, nfs, iscsi, protcol, nfs protocol, iscsi protocol, configure host, host config, nvme/tcp, nvme 
+summary: 您必須先在主機上安裝及設定必要的通訊協定先決條件、才能部署 Trident 。 
+---
+= 部署的先決條件
+:hardbreaks:
+:allow-uri-read: 
+:icons: font
+:imagesdir: ../media/
+
+
+[role="lead"]
+您必須先在主機上安裝及設定必要的通訊協定先決條件、才能部署 Trident 。
+
+
+
+== 驗證需求
+
+* 確認您的部署符合所有link:../trident-get-started/requirements.html["需求"]的。
+* 確認您安裝的Docker版本受支援。如果 Docker 版本過時、 https://docs.docker.com/engine/install/["安裝或更新"^]
++
+[source, console]
+----
+docker --version
+----
+* 確認主機上已安裝並設定通訊協定先決條件。
+
+
+
+
+=== NFS工具
+
+使用作業系統的命令來安裝NFS工具。
+
+[role="tabbed-block"]
+====
+.RHEL 8以上
+--
+[source, console]
+----
+sudo yum install -y nfs-utils
+----
+--
+.Ubuntu
+--
+[source, console]
+----
+sudo apt-get install -y nfs-common
+----
+--
+====
+
+WARNING: 安裝NFS工具之後、請重新啟動工作節點、以避免將磁碟區附加至容器時發生故障。
+
+
+
+=== iSCSI工具
+
+使用適用於您作業系統的命令來安裝iSCSI工具。
+
+[role="tabbed-block"]
+====
+.RHEL 8以上
+--
+. 安裝下列系統套件：
++
+[source, console]
+----
+sudo yum install -y lsscsi iscsi-initiator-utils sg3_utils device-mapper-multipath
+----
+. 檢查iscsite-initier-utils版本是否為6.6.0.874-2.el7或更新版本：
++
+[source, console]
+----
+rpm -q iscsi-initiator-utils
+----
+. 將掃描設為手動：
++
+[source, console]
+----
+sudo sed -i 's/^\(node.session.scan\).*/\1 = manual/' /etc/iscsi/iscsid.conf
+----
+. 啟用多重路徑：
++
+[source, console]
+----
+sudo mpathconf --enable --with_multipathd y --find_multipaths n
+----
++
+
+NOTE: 確保 `etc/multipath.conf`包含 `find_multipaths no`在 `defaults`中。
+
+. 確定 `iscsid`和 `multipathd`正在執行：
++
+[source, console]
+----
+sudo systemctl enable --now iscsid multipathd
+----
+. 啓用和啓動 `iscsi`：
++
+[source, console]
+----
+sudo systemctl enable --now iscsi
+----
+
+
+--
+.Ubuntu
+--
+. 安裝下列系統套件：
++
+[source, console]
+----
+sudo apt-get install -y open-iscsi lsscsi sg3-utils multipath-tools scsitools
+----
+. 檢查開放式iSCSI版本是否為2.0.874-5ubuntu2．10或更新版本（適用於雙聲網路）或2.0.874-7.1ubuntu6.1或更新版本（適用於焦點）：
++
+[source, console]
+----
+dpkg -l open-iscsi
+----
+. 將掃描設為手動：
++
+[source, console]
+----
+sudo sed -i 's/^\(node.session.scan\).*/\1 = manual/' /etc/iscsi/iscsid.conf
+----
+. 啟用多重路徑：
++
+[source, console]
+----
+sudo tee /etc/multipath.conf <<-EOF
+defaults {
+    user_friendly_names yes
+    find_multipaths no
+}
+EOF
+sudo systemctl enable --now multipath-tools.service
+sudo service multipath-tools restart
+----
++
+
+NOTE: 確保 `etc/multipath.conf`包含 `find_multipaths no`在 `defaults`中。
+
+. 確定 `open-iscsi`已啟用和 `multipath-tools`執行：
++
+[source, console]
+----
+sudo systemctl status multipath-tools
+sudo systemctl enable --now open-iscsi.service
+sudo systemctl status open-iscsi
+----
+
+
+--
+====
+
+
+== NVMe 工具
+
+使用適用於您作業系統的命令來安裝 NVMe 工具。
+
+[NOTE]
+====
+* NVMe 需要 RHEL 9 或更新版本。
+* 如果 Kubernetes 節點的核心版本太舊、或 NVMe 套件無法用於您的核心版本、您可能必須使用 NVMe 套件將節點的核心版本更新為一個。
+
+
+====
+[role="tabbed-block"]
+====
+.RHEL 9
+--
+[source, console]
+----
+sudo yum install nvme-cli
+sudo yum install linux-modules-extra-$(uname -r)
+sudo modprobe nvme-tcp
+----
+--
+.Ubuntu
+--
+[source, console]
+----
+sudo apt install nvme-cli
+sudo apt -y install linux-modules-extra-$(uname -r)
+sudo modprobe nvme-tcp
+----
+--
+====
+
+
+== FC工具
+
+使用作業系統的命令來安裝FC工具。
+
+* 當使用搭配 FC PV 執行 RHEL/Red Hat Enterprise Linux CoreOS （ RHCOS ）的工作節點時，請在 StorageClass 中指定 `discard` mountOption 以執行內嵌空間回收。請參閱 https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html/managing_file_systems/discarding-unused-blocks_managing-file-systems["Red Hat 說明文件"^]。
+
+
+[role="tabbed-block"]
+====
+.RHEL 8以上
+--
+. 安裝下列系統套件：
++
+[source, console]
+----
+sudo yum install -y lsscsi device-mapper-multipath
+----
+. 啟用多重路徑：
++
+[source, console]
+----
+sudo mpathconf --enable --with_multipathd y --find_multipaths n
+----
++
+
+NOTE: 確保 `etc/multipath.conf`包含 `find_multipaths no`在 `defaults`中。
+
+. 確定 `multipathd`執行中：
++
+[source, console]
+----
+sudo systemctl enable --now multipathd
+----
+
+
+--
+.Ubuntu
+--
+. 安裝下列系統套件：
++
+[source, console]
+----
+sudo apt-get install -y lsscsi sg3-utils multipath-tools scsitools
+----
+. 啟用多重路徑：
++
+[source, console]
+----
+sudo tee /etc/multipath.conf <<-EOF
+defaults {
+    user_friendly_names yes
+    find_multipaths no
+}
+EOF
+sudo systemctl enable --now multipath-tools.service
+sudo service multipath-tools restart
+----
++
+
+NOTE: 確保 `etc/multipath.conf`包含 `find_multipaths no`在 `defaults`中。
+
+. 確定 `multipath-tools`已啟用並正在執行：
++
+[source, console]
+----
+sudo systemctl status multipath-tools
+----
+
+
+--
+====

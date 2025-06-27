@@ -1,0 +1,100 @@
+---
+sidebar: sidebar 
+permalink: trident-use/manage-stor-class.html 
+keywords: storage class, manage storage class, storage classes, kubernetes storage classes 
+summary: 您可以檢視現有的儲存類別、設定預設的儲存類別、識別儲存類別後端、以及刪除儲存類別。 
+---
+= 管理儲存類別
+:hardbreaks:
+:allow-uri-read: 
+:icons: font
+:imagesdir: ../media/
+
+
+[role="lead"]
+您可以檢視現有的儲存類別、設定預設的儲存類別、識別儲存類別後端、以及刪除儲存類別。
+
+
+
+== 檢視現有的儲存類別
+
+* 若要檢視現有的Kubernetes儲存類別、請執行下列命令：
+
+
+[listing]
+----
+kubectl get storageclass
+----
+* 若要檢視Kubernetes儲存類別詳細資料、請執行下列命令：
+
+
+[listing]
+----
+kubectl get storageclass <storage-class> -o json
+----
+* 若要檢視 Trident 的同步儲存類別、請執行下列命令：
+
+
+[listing]
+----
+tridentctl get storageclass
+----
+* 若要檢視 Trident 的同步儲存類別詳細資料、請執行下列命令：
+
+
+[listing]
+----
+tridentctl get storageclass <storage-class> -o json
+----
+
+
+== 設定預設儲存類別
+
+Kubernetes 1.6新增了設定預設儲存類別的功能。如果使用者未在「持續磁碟區宣告」（PVc）中指定一個、則此儲存類別將用於配置「持續磁碟區」。
+
+* 在儲存類別定義中將註釋設為 true 、以定義預設儲存 `storageclass.kubernetes.io/is-default-class`類別。根據規格、任何其他值或不存在附註都會解譯為假。
+* 您可以使用下列命令、將現有的儲存類別設定為預設的儲存類別：
+
+
+[listing]
+----
+kubectl patch storageclass <storage-class-name> -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+----
+* 同樣地、您也可以使用下列命令移除預設儲存類別註釋：
+
+
+[listing]
+----
+kubectl patch storageclass <storage-class-name> -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
+----
+Trident安裝程式套件中也有包含此附註的範例。
+
+
+NOTE: 叢集中一次只應有一個預設儲存類別。Kubernetes在技術上並不妨礙您擁有多個儲存類別、但它的行為方式就如同完全沒有預設的儲存類別一樣。
+
+
+
+== 識別儲存類別的後端
+
+這是您可以使用 JSON 來回答的問題類型範例、此問題 `tridentctl`會針對 Trident 後端物件輸出。這會使用 `jq`您可能需要先安裝的公用程式。
+
+[listing]
+----
+tridentctl get storageclass -o json | jq  '[.items[] | {storageClass: .Config.name, backends: [.storage]|unique}]'
+----
+
+
+== 刪除儲存類別
+
+若要從Kubernetes刪除儲存類別、請執行下列命令：
+
+[listing]
+----
+kubectl delete storageclass <storage-class>
+----
+`<storage-class>`應替換為您的儲存類別。
+
+透過此儲存類別建立的任何持續磁碟區都將保持不變、 Trident 將繼續管理這些磁碟區。
+
+
+NOTE: Trident 會對其建立的磁碟區強制執行空白 `fsType`。對於 iSCSI 後端、建議在 StorageClass 中強制執行 `parameters.fsType`。您應該刪除現有的 StorageClasses 、然後使用指定的方式重新建立它們 `parameters.fsType`。

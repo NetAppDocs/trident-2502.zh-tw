@@ -1,0 +1,100 @@
+---
+sidebar: sidebar 
+permalink: trident-use/trident-aws-addon.html 
+keywords: Trident add-on, Trident EKS add-on, Trident AWS EKS add-on, integrate Trident, Trident 
+summary: 將 Trident EKS 附加元件新增至 Kubernetes 叢集。 
+---
+= 在 EKS 叢集上設定 Trident EKS 附加元件
+:hardbreaks:
+:allow-uri-read: 
+:icons: font
+:imagesdir: ../media/
+
+
+[role="lead"]
+NetApp Trident 簡化了 Kubernetes 中適用於 NetApp ONTAP 儲存管理的 Amazon FSX ，讓開發人員和管理員能夠專注於應用程式部署。NetApp Trident EKS 附加元件包含最新的安全性修補程式，錯誤修正，並經過 AWS 驗證，可與 Amazon EKS 搭配使用。EKS 附加元件可讓您持續確保 Amazon EKS 叢集安全穩定、並減少安裝、設定及更新附加元件所需的工作量。
+
+
+
+== 先決條件
+
+在設定 AWS EKS 的 Trident 附加元件之前、請確定您具有下列項目：
+
+* 具有附加元件使用權限的 Amazon EKS 叢集帳戶。請參閱 link:https://docs.aws.amazon.com/eks/latest/userguide/eks-add-ons.html["Amazon EKS 附加元件"^]。
+* AWS 對 AWS 市場的權限：
+`"aws-marketplace:ViewSubscriptions",
+"aws-marketplace:Subscribe",
+"aws-marketplace:Unsubscribe`
+* AMI 類型： Amazon Linux 2 （ AL2_x86_64 ）或 Amazon Linux 2 ARM （ ARM _64 ）
+* 節點類型： AMD 或 ARM
+* 現有的 Amazon FSX for NetApp ONTAP 檔案系統
+
+
+
+
+== 步驟
+
+. 請務必建立 IAM 角色和 AWS 密碼，讓 EKS Pod 能夠存取 AWS 資源。有關說明，請參閱link:../trident-use/trident-fsx-iam-role.html["建立 IAM 角色和 AWS 密碼"^]。
+. 在 EKS Kubernetes 叢集上，瀏覽至 * 附加元件 * 索引標籤。
++
+image::../media/aws-eks-01.png[AWS EKS 01]
+
+. 前往 * AWS Marketplace 附加元件 * 並選擇 _storage 類別。
++
+image::../media/aws-eks-02.png[AWS EKS 02]
+
+. 找到 * NetApp Trident * 並選取 Trident 附加元件的核取方塊，然後按一下 * 下一步 * 。
+. 選擇所需版本的附加元件。
++
+image::../media/aws-eks-03.png[AWS EKS 03]
+
+. 選取 IAM 角色選項以從節點繼承。
++
+image::../media/aws-eks-04.png[AWS EKS 04]
+
+. 遵循 *Add-on 組態架構 * ，並將 *Configuration valus* 一節上的組態值參數設定為您在上一個步驟（步驟 1 ）中建立的角色。值應採用下列格式：
++
+[source, JSON]
+----
+{
+
+  "cloudIdentity": "'eks.amazonaws.com/role-arn: <role ARN>'"
+
+}
+----
++
+
+NOTE: 如果您為衝突解決方法選取「覆寫」、則現有附加元件的一或多個設定可以使用 Amazon EKS 附加元件設定覆寫。如果您未啟用此選項、且與現有設定發生衝突、則作業將會失敗。您可以使用產生的錯誤訊息來疑難排解衝突。選取此選項之前、請確定 Amazon EKS 附加元件不會管理您需要自行管理的設定。
+
++
+image::../media/aws-eks-06.png[AWS EKS 06]
+
+. 選擇* Create *（建立*）。
+. 確認附加元件的狀態為 _Active_ 。
++
+image::../media/aws-eks-05.png[AWS EKS 05]
+
+. 執行下列命令，確認叢集上已正確安裝 Trident ：
++
+[listing]
+----
+kubectl get pods -n trident
+----
+. 繼續設定並設定儲存後端。如需相關資訊，請參閱 link:../trident-use/trident-fsx-storage-backend.html["設定儲存後端"^]。
+
+
+
+
+== 使用 CLI 安裝 / 解除安裝 Trident EKS 附加元件
+
+.使用 CLI 安裝 NetApp Trident EKS 附加元件：
+下列範例命令會安裝 Trident EKS 附加元件：
+`eksctl create addon --cluster clusterName --name netapp_trident-operator --version v25.02.1-eksbuild.1`（含專用版本）
+
+.使用 CLI 解除安裝 NetApp Trident EKS 附加元件：
+下列命令會解除安裝 Trident EKS 附加元件：
+
+[listing]
+----
+eksctl delete addon --cluster K8s-arm --name netapp_trident-operator
+----

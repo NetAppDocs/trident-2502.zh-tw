@@ -1,0 +1,257 @@
+---
+sidebar: sidebar 
+permalink: trident-get-started/kubernetes-deploy-helm-mirror.html 
+keywords: deploy, Trident, operator, helm, helm chart, configuration, values, offline, air gap, gap, registry 
+summary: 您可以部署 Trident 運算子、並使用 Helm 安裝 Trident 。此程序適用於 Trident 所需的容器映像儲存在私有登錄中的安裝。 
+---
+= 使用Helm部署Trident運算子（離線模式）
+:hardbreaks:
+:allow-uri-read: 
+:icons: font
+:imagesdir: ../media/
+
+
+[role="lead"]
+您可以部署 Trident 運算子、並使用 Helm 安裝 Trident 。此程序適用於 Trident 所需的容器映像儲存在私有登錄中的安裝。如果您沒有私有映像登錄，請使用link:kubernetes-deploy-helm.html["標準部署程序"]。
+
+
+
+== Trident 25.02 的重要資訊
+
+* 您必須閱讀下列有關 Trident 的重要資訊。 *
+
+.<strong> 的 Trident </strong> 相關資訊
+[%collapsible%open]
+====
+[]
+=====
+* Kubernetes 1.32 現在支援 Trident 。升級Kubernetes之前先升級Trident。
+* Trident 嚴格強制在 SAN 環境中使用多重路徑組態、建議在 multipath.conf 檔案中使用值 `find_multipaths: no`。
++
+在 multipath.conf 檔案中使用非多重路徑組態或使用 `find_multipaths: yes`或 `find_multipaths: smart`值、將會導致掛載失敗。Trident 建議自 2007 年 21 月 1 日起使用 `find_multipaths: no`。
+
+
+
+=====
+====
+
+
+== 部署 Trident 操作員、並使用 Helm 安裝 Trident
+
+使用 Trident link:https://artifacthub.io/packages/helm/netapp-trident/trident-operator["掌舵表"^]、您可以部署 Trident 操作員、並在一個步驟中安裝 Trident 。
+
+請檢閱link:../trident-get-started/kubernetes-deploy.html["安裝總覽"]以確保您符合安裝先決條件、並為您的環境選擇正確的安裝選項。
+
+.開始之前
+除了您需要的link:../trident-get-started/kubernetes-deploy.html#before-you-deploy["部署先決條件"]link:https://v3.helm.sh/["Helm版本3"^]。
+
+
+IMPORTANT: 在私有儲存庫中安裝 Trident 時、如果您使用 `imageRegistry`交換器來指定儲存庫位置、請勿在儲存庫路徑中使用 `/netapp/`。
+
+.步驟
+. 新增Trident Helm儲存庫：
++
+[source, console]
+----
+helm repo add netapp-trident https://artifacthub.io/packages/helm/netapp-trident/trident-operator
+----
+. 使用 `helm install` 並指定部署和映像登錄位置的名稱。您 link:../trident-get-started/requirements.html#container-images-and-corresponding-kubernetes-versions["Trident和csi影像"] 可以位於一個登錄或不同的登錄中、但所有 CSI 映像都必須位於同一個登錄中。在範例中 `100.2502.0`、是您要安裝的 Trident 版本。
++
+[role="tabbed-block"]
+====
+.一個登錄中的映像
+--
+[source, console]
+----
+helm install <name> netapp-trident/trident-operator --version 100.2502.0 --set imageRegistry=<your-registry> --create-namespace --namespace <trident-namespace> --set nodePrep={iscsi}
+----
+--
+.不同登錄中的映像
+--
+[source, console]
+----
+helm install <name> netapp-trident/trident-operator --version 100.2502.0 --set imageRegistry=<your-registry> --set operatorImage=<your-registry>/trident-operator:25.02.0 --set tridentAutosupportImage=<your-registry>/trident-autosupport:25.02 --set tridentImage=<your-registry>/trident:25.02.0 --create-namespace --namespace <trident-namespace> --set nodePrep={iscsi}
+----
+--
+====
++
+
+NOTE: 如果您已經為 Trident 建立命名空間、此 `--create-namespace`參數將不會建立額外的命名空間。
+
+
+
+您可以使用 `helm list` 檢閱安裝詳細資料、例如名稱、命名空間、圖表、狀態、應用程式版本、 和修訂版編號。
+
+
+
+== 在安裝期間傳遞組態資料
+
+安裝期間有兩種傳遞組態資料的方法：
+
+[cols="2"]
+|===
+| 選項 | 說明 
+
+
+| `--values`（或 `-f`）  a| 
+指定具有覆寫的Yaml檔案。這可以多次指定、最右邊的檔案會優先。
+
+
+
+| `--set`  a| 
+在命令列上指定置換。
+
+|===
+例如，若要變更的預設值 `debug`，請執行下列命令，其中 `100.2502.0`是您要安裝的 Trident 版本：
+
+[source, console]
+----
+helm install <name> netapp-trident/trident-operator --version 100.2502.0  --create-namespace --namespace trident --set tridentDebug=true
+----
+若要新增 nodePrep 值、請執行下列命令：
+
+[source, console]
+----
+helm install <name> netapp-trident/trident-operator --version 100.2502.0  --create-namespace --namespace trident --set nodePrep={iscsi}
+----
+
+
+== 組態選項
+
+此表格和 `values.yaml`檔案是 Helm 圖表的一部分、提供按鍵清單及其預設值。
+
+
+WARNING: 請勿移除 values.yaml 檔案的預設關聯性。當您想要提供自訂關聯性時、請擴充預設關聯性。
+
+[cols="3"]
+|===
+| 選項 | 說明 | 預設 
+
+
+| `nodeSelector` | Pod 指派的節點標籤 |  
+
+
+| `podAnnotations` | Pod 註釋 |  
+
+
+| `deploymentAnnotations` | 部署註釋 |  
+
+
+| `tolerations` | Pod 指派的容錯功能 |  
+
+
+| `affinity` | Pod 指派的關聯性  a| 
+[listing]
+----
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/arch
+              operator: In
+              values:
+              - arm64
+              - amd64
+            - key: kubernetes.io/os
+              operator: In
+              values:
+              - linux
+----
+
+WARNING: 請勿移除 values.yaml 檔案的預設關聯性。當您想要提供自訂關聯性時、請擴充預設關聯性。
+
+
+
+| `tridentControllerPluginNodeSelector` | 用於 Pod 的其他節點選取器。如 link:../trident-get-started/architecture.html#understanding-controller-pods-and-node-pods["瞭解控制器 Pod 和節點 Pod"] 需詳細資訊、請參閱。 |  
+
+
+| `tridentControllerPluginTolerations` | 覆寫 Pod 的 Kubernetes 公差。如 link:../trident-get-started/architecture.html#understanding-controller-pods-and-node-pods["瞭解控制器 Pod 和節點 Pod"] 需詳細資訊、請參閱。 |  
+
+
+| `tridentNodePluginNodeSelector` | 用於 Pod 的其他節點選取器。如 link:../trident-get-started/architecture.html#understanding-controller-pods-and-node-pods["瞭解控制器 Pod 和節點 Pod"] 需詳細資訊、請參閱。 |  
+
+
+| `tridentNodePluginTolerations` | 覆寫 Pod 的 Kubernetes 公差。如 link:../trident-get-started/architecture.html#understanding-controller-pods-and-node-pods["瞭解控制器 Pod 和節點 Pod"] 需詳細資訊、請參閱。 |  
+
+
+| `imageRegistry` | 識別、 `trident`和其他影像的登錄 `trident-operator`。保留空白以接受預設值。重要事項：在私有儲存庫中安裝 Trident 時、如果您使用 `imageRegistry`交換器來指定儲存庫位置、請勿在儲存庫路徑中使用 `/netapp/`。 | " 
+
+
+| `imagePullPolicy` | 設定的映像拉出原則 `trident-operator`。 | `IfNotPresent` 
+
+
+| `imagePullSecrets` | 設定、 `trident`和其他影像的影像拉出秘密 `trident-operator`。 |  
+
+
+| `kubeletDir` | 允許覆寫 kubelet 內部狀態的主機位置。 | `"/var/lib/kubelet"` 
+
+
+| `operatorLogLevel` | 允許將 Trident 運算符的日誌級別設置爲： `trace`、 `debug`、 `info`、 `warn` `error`或 `fatal`。 | `"info"` 
+
+
+| `operatorDebug` | 允許將 Trident 運算子的記錄層級設為偵錯。 | `true` 
+
+
+| `operatorImage` | 允許完全置換的影像 `trident-operator`。 | " 
+
+
+| `operatorImageTag` | 允許覆寫映像的標記 `trident-operator`。 | " 
+
+
+| `tridentIPv6` | 允許 Trident 在 IPv6 叢集中運作。 | `false` 
+
+
+| `tridentK8sTimeout` | 覆寫大部分 Kubernetes API 作業的預設 30 秒逾時（如果非零、則以秒為單位）。 | `0` 
+
+
+| `tridentHttpRequestTimeout` | 會覆寫 HTTP 要求的預設 90 秒逾時、並 `0s`為逾時的無限持續時間。不允許使用負值。 | `"90s"` 
+
+
+| `tridentSilenceAutosupport` | 允許停用 Trident 定期 AutoSupport 報告。 | `false` 
+
+
+| `tridentAutosupportImageTag` | 允許覆寫 Trident AutoSupport 容器的映像標記。 | `<version>` 
+
+
+| `tridentAutosupportProxy` | 可讓 Trident AutoSupport Container 透過 HTTP Proxy 撥打電話回家。 | " 
+
+
+| `tridentLogFormat` | 設定 Trident 記錄格式(`text`或 `json`）。 | `"text"` 
+
+
+| `tridentDisableAuditLog` | 停用 Trident 稽核記錄程式。 | `true` 
+
+
+| `tridentLogLevel` | 允許將 Trident 的日誌級別設置爲： `trace`、 `debug`、 `info`、 `warn` `error`或 `fatal`。 | `"info"` 
+
+
+| `tridentDebug` | 允許將 Trident 的記錄層級設定為 `debug`。 | `false` 
+
+
+| `tridentLogWorkflows` | 允許啟用特定的 Trident 工作流程、以進行追蹤記錄或記錄抑制。 | " 
+
+
+| `tridentLogLayers` | 允許啟用特定 Trident 層以進行追蹤記錄或記錄抑制。 | " 
+
+
+| `tridentImage` | 允許完全置換 Trident 的映像。 | " 
+
+
+| `tridentImageTag` | 可覆寫 Trident 的映像標記。 | " 
+
+
+| `tridentProbePort` | 允許覆寫 Kubernetes 活性 / 整備性探查所使用的預設連接埠。 | " 
+
+
+| `windows` | 可在 Windows 工作節點上安裝 Trident 。 | `false` 
+
+
+| `enableForceDetach` | 允許啟用強制分離功能。 | `false` 
+
+
+| `excludePodSecurityPolicy` | 不建立營運商 Pod 安全性原則。 | `false` 
+
+
+| `nodePrep` | 可讓 Trident 準備 Kubernetes 叢集的節點、以使用指定的資料儲存傳輸協定來管理磁碟區。* 目前 `iscsi`是唯一支援的值。 * |  
+|===

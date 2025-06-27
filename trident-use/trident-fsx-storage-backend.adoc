@@ -1,0 +1,333 @@
+---
+sidebar: sidebar 
+permalink: trident-use/trident-fsx-storage-backend.html 
+keywords: Amazon FSx for NetApp ONTAP, FSx for ONTAP, deploy Trident, integrate Trident, Trident 
+summary: 使用 Trident 搭配 Amazon FSX for NetApp ONTAP 、您可以確保在 Amazon Elastic Kubernetes Service （ EKS ）中執行的 Kubernetes 叢集可以佈建由 ONTAP 支援的區塊和檔案持續性磁碟區。 
+---
+= 設定儲存後端
+:hardbreaks:
+:allow-uri-read: 
+:icons: font
+:imagesdir: ../media/
+
+
+
+
+== 整合SAN和NAS驅動程式ONTAP
+
+若要建立儲存後端，您需要以 JSON 或 YAML 格式建立組態檔案。檔案需要指定您想要的儲存類型（ NAS 或 SAN ），檔案系統和 SVM ，才能從中取得，以及如何驗證。以下範例說明如何定義 NAS 型儲存設備，以及如何使用 AWS 密碼將認證儲存至您要使用的 SVM ：
+
+[role="tabbed-block"]
+====
+.YAML
+--
+[source, YAML]
+----
+apiVersion: trident.netapp.io/v1
+kind: TridentBackendConfig
+metadata:
+  name: backend-tbc-ontap-nas
+  namespace: trident
+spec:
+  version: 1
+  storageDriverName: ontap-nas
+  backendName: tbc-ontap-nas
+  svm: svm-name
+  aws:
+    fsxFilesystemID: fs-xxxxxxxxxx
+  credentials:
+    name: "arn:aws:secretsmanager:us-west-2:xxxxxxxx:secret:secret-name"
+    type: awsarn
+----
+--
+.JSON
+--
+[source, JSON]
+----
+{
+  "apiVersion": "trident.netapp.io/v1",
+  "kind": "TridentBackendConfig",
+  "metadata": {
+    "name": "backend-tbc-ontap-nas"
+    "namespace": "trident"
+  },
+  "spec": {
+    "version": 1,
+    "storageDriverName": "ontap-nas",
+    "backendName": "tbc-ontap-nas",
+    "svm": "svm-name",
+    "aws": {
+      "fsxFilesystemID": "fs-xxxxxxxxxx"
+    },
+    "managementLIF": null,
+    "credentials": {
+      "name": "arn:aws:secretsmanager:us-west-2:xxxxxxxx:secret:secret-name",
+      "type": "awsarn"
+    }
+  }
+}
+
+----
+--
+====
+執行下列命令以建立及驗證 Trident 後端組態（ TBC ）：
+
+* 從 yaml 檔案建立 Trident 後端組態（ TBC ），然後執行下列命令：
++
+[source, console]
+----
+kubectl create -f backendconfig.yaml -n trident
+----
++
+[listing]
+----
+tridentbackendconfig.trident.netapp.io/backend-tbc-ontap-nas created
+----
+* 驗證已成功建立 Trident 後端組態（ TBC ）：
++
+[source, console]
+----
+Kubectl get tbc -n trident
+----
++
+[listing]
+----
+NAME                         BACKEND NAME         BACKEND UUID                           PHASE   STATUS
+
+backend-tbc-ontap-nas        tbc-ontap-nas        933e0071-66ce-4324-b9ff-f96d916ac5e9   Bound   Success
+----
+
+
+
+
+== 適用於 ONTAP 驅動程式詳細資料的 FSX
+
+您可以使用下列驅動程式、將 Trident 與 Amazon FSX for NetApp ONTAP 整合：
+
+* `ontap-san`：配置的每個 PV 都是其各自 Amazon FSX 中的 LUN （用於 NetApp ONTAP Volume ）。建議用於區塊儲存。
+* `ontap-nas`：配置的每個 PV 都是 NetApp ONTAP Volume 的完整 Amazon FSX 。建議用於 NFS 和 SMB 。
+* `ontap-san-economy`：每個 PV 配置的 LUN 都是 NetApp ONTAP Volume 的每個 Amazon FSX 具有可設定數量的 LUN 。
+* `ontap-nas-economy`：每個已配置的 PV 都是 qtree 、每個 Amazon FSX 的 NetApp ONTAP Volume 可設定數量的 qtree 。
+* `ontap-nas-flexgroup`：配置的每個 PV 都是 NetApp ONTAP FlexGroup Volume 的完整 Amazon FSX 。
+
+
+如需驅動程式詳細資料、請參閱link:../trident-use/ontap-nas.html["NAS 驅動程式"]和link:../trident-use/ontap-san.html["SAN 驅動程式"]。
+
+建立組態檔案後，請執行此命令，在 EKS 中建立：
+
+[source, console]
+----
+kubectl create -f configuration_file
+----
+若要驗證狀態，請執行此命令：
+
+[source, console]
+----
+kubectl get tbc -n trident
+----
+[listing]
+----
+NAME                    BACKEND NAME            BACKEND UUID                           PHASE   STATUS
+backend-fsx-ontap-nas   backend-fsx-ontap-nas   7a551921-997c-4c37-a1d1-f2f4c87fa629   Bound   Success
+----
+
+
+== 後端進階組態和範例
+
+如需後端組態選項、請參閱下表：
+
+[cols="3"]
+|===
+| 參數 | 說明 | 範例 
+
+
+| `version` |  | 永遠為1 
+
+
+| `storageDriverName` | 儲存驅動程式名稱 | `ontap-nas`、、 `ontap-nas-economy` `ontap-nas-flexgroup` `ontap-san`、 `ontap-san-economy` 
+
+
+| `backendName` | 自訂名稱或儲存後端 | 驅動程式名稱 + "_" + dataLIF 
+
+
+| `managementLIF` | 叢集或 SVM 管理 LIF 的 IP 位址可以指定完整網域名稱（ FQDN ）。如果使用 IPv6 旗標安裝 Trident 、則可設定為使用 IPv6 位址。IPv6位址必須以方括弧來定義、例如[28e8：d9fb：a825：b7bf：69a8：d02f：9e7b：3555]。如果您在欄位下方 `aws`提供、則 `fsxFilesystemID`不需要提供、 `managementLIF`因為 Trident 會從 AWS 擷取 SVM `managementLIF` 資訊。因此、您必須在 SVM 下提供使用者的認證（例如： vsadmin ）、且使用者必須具有該 `vsadmin` 角色。 | "10.0.0.1 " ， "[2001:1234:abcd::fefe] 
+
+
+| `dataLIF` | 傳輸協定LIF的IP位址。* ONTAP NAS 驅動程式 * ： NetApp 建議指定 dataLIF 。如果未提供， Trident 會從 SVM 擷取 dataLIFs 。您可以指定完整網域名稱（ FQDN ），以用於 NFS 裝載作業，讓您建立循環 DNS ，以便在多個 dataLIFs 之間進行負載平衡。可在初始設定之後變更。請參閱 。*《SAN驅動程式*：請勿指定用於iSCSI》ONTAP 。Trident 使用 ONTAP 選擇性 LUN 對應來探索建立多重路徑工作階段所需的 iSCI 生命。如果明確定義dataLIF、就會產生警告。如果使用 IPv6 旗標安裝 Trident 、則可設定為使用 IPv6 位址。IPv6位址必須以方括弧來定義、例如[28e8：d9fb：a825：b7bf：69a8：d02f：9e7b：3555]。 |  
+
+
+| `autoExportPolicy` | 啟用自動匯出原則建立及更新[布 林值]。使用 `autoExportPolicy`和 `autoExportCIDRs`選項、 Trident 可以自動管理匯出原則。 | `false` 
+
+
+| `autoExportCIDRs` | 將 Kubernetes 節點 IP 篩選在啟用時的 CIDR 清單 `autoExportPolicy`。使用 `autoExportPolicy`和 `autoExportCIDRs`選項、 Trident 可以自動管理匯出原則。 | "["0.0.0/0" ， ":/0"]" 
+
+
+| `labels` | 套用到磁碟區的任意JSON-格式化標籤集 | " 
+
+
+| `clientCertificate` | 用戶端憑證的Base64編碼值。用於憑證型驗證 | " 
+
+
+| `clientPrivateKey` | 用戶端私密金鑰的Base64編碼值。用於憑證型驗證 | " 
+
+
+| `trustedCACertificate` | 受信任CA憑證的Base64編碼值。選用。用於憑證型驗證。 | " 
+
+
+| `username` | 連線至叢集或SVM的使用者名稱。用於認證型驗證。例如、vsadmin。 |  
+
+
+| `password` | 連線至叢集或SVM的密碼。用於認證型驗證。 |  
+
+
+| `svm` | 要使用的儲存虛擬機器 | 指定SVM管理LIF時衍生。 
+
+
+| `storagePrefix` | 在SVM中配置新磁碟區時所使用的前置碼。無法在建立後修改。若要更新此參數、您需要建立新的後端。 | `trident` 
+
+
+| `limitAggregateUsage` | * 請勿指定 Amazon FSX for NetApp ONTAP 。 *提供的 `fsxadmin`和 `vsadmin`不包含使用 Trident 擷取彙總使用量並加以限制所需的權限。 | 請勿使用。 
+
+
+| `limitVolumeSize` | 如果要求的磁碟區大小高於此值、則資源配置失敗。也會限制其管理 qtree 和 LUN 的最大磁碟區大小，而且此 `qtreesPerFlexvol`選項可讓您自訂每個 FlexVol volume 的最大 qtree 數量 | ""（預設不強制執行） 
+
+
+| `lunsPerFlexvol` | 每個 FlexVol volume 的最大 LUN 數必須在 [50 ， 200] 範圍內。僅限 SAN 。 | "`100`" 
+
+
+| `debugTraceFlags` | 疑難排解時要使用的偵錯旗標。例如、除非您正在進行疑難排解並需要詳細的記錄傾印、否則 ｛ "api" ： false 、 "method" ： true} 不使用 `debugTraceFlags`。 | null 
+
+
+| `nfsMountOptions` | 以逗號分隔的NFS掛載選項清單。Kubernetes-Persistent Volume 的掛載選項通常是在儲存類別中指定、但如果儲存類別中未指定掛載選項、則 Trident 會回復為使用儲存後端組態檔案中指定的掛載選項。如果儲存類別或組態檔案中未指定任何掛載選項、 Trident 將不會在關聯的持續磁碟區上設定任何掛載選項。 | " 
+
+
+| `nasType` | 設定NFS或SMB磁碟區建立。選項包括 `nfs`、 `smb`或 null 。* SMB Volume 必須設為 `smb`。 *NFS磁碟區的預設值設為null。 | `nfs` 
+
+
+| `qtreesPerFlexvol` | 每個 FlexVol volume 的最大 qtree 數必須在範圍 [50 ， 300] | `"200"` 
+
+
+| `smbShare` | 您可以指定下列其中一項：使用 Microsoft 管理主控台或 ONTAP CLI 建立的 SMB 共用名稱、或是允許 Trident 建立 SMB 共用的名稱。ONTAP 後端的 Amazon FSX 需要此參數。 | `smb-share` 
+
+
+| `useREST` | 使用ONTAP Isrest API的布林參數。設為 `true`時、 Trident 將使用 ONTAP REST API 與後端通訊。此功能需要ONTAP 使用更新版本的版本。此外、使用的 ONTAP 登入角色必須具有應用程式存取權 `ontap` 。這是預先定義的和角色所滿足 `vsadmin` `cluster-admin` 的。 | `false` 
+
+
+| `aws` | 您可以在 AWS FSX for ONTAP 的組態檔中指定下列項目： - `fsxFilesystemID`：指定 AWS FSX 檔案系統的 ID 。- `apiRegion`： AWS API 區域名稱。- `apikey`： AWS API 金鑰。- `secretKey`： AWS 秘密金鑰。 | ``
+`` 
+`""`
+`""`
+`""` 
+
+
+| `credentials` | 指定要儲存在 AWS Secrets Manager 中的 FSX SVM 認證。- `name`：機密的 Amazon 資源名稱（ ARN ）、其中包含 SVM 的認證。- `type`：設為 `awsarn`。如需詳細資訊、請參閱 link:https://docs.aws.amazon.com/secretsmanager/latest/userguide/create_secret.html["建立 AWS Secrets Manager 密碼"^] 。 |  
+|===
+
+
+== 用於資源配置磁碟區的後端組態選項
+
+您可以使用組態區段中的這些選項來控制預設資源配置 `defaults`。如需範例、請參閱下列組態範例。
+
+[cols="3"]
+|===
+| 參數 | 說明 | 預設 
+
+
+| `spaceAllocation` | LUN的空間分配 | `true` 
+
+
+| `spaceReserve` | 空間保留模式；「無」（精簡）或「 Volume 」（粗） | `none` 
+
+
+| `snapshotPolicy` | 要使用的Snapshot原則 | `none` 
+
+
+| `qosPolicy` | 要指派給所建立磁碟區的QoS原則群組。選擇每個儲存集區或後端的其中一個qosPolicy或adaptiveQosPolicy。搭配 Trident 使用 QoS 原則群組需要 ONTAP 9 8 或更新版本。您應該使用非共用的 QoS 原則群組、並確保個別將原則群組套用至每個成員。共享 QoS 原則群組會強制執行所有工作負載總處理量的上限。 | " 
+
+
+| `adaptiveQosPolicy` | 要指派給所建立磁碟區的調適性QoS原則群組。選擇每個儲存集區或後端的其中一個qosPolicy或adaptiveQosPolicy。不受ONTAP-NAS-經濟支援。 | " 
+
+
+| `snapshotReserve` | 為快照保留的磁碟區百分比「 0 」 | 如果 `snapshotPolicy`是 `none`， `else` 
+
+
+| `splitOnClone` | 建立複本時、從其父複本分割複本 | `false` 
+
+
+| `encryption` | 在新磁碟區上啟用 NetApp Volume Encryption （ NVE ）；預設為 `false`。必須在叢集上授權並啟用NVE、才能使用此選項。如果在後端啟用 NAE 、則 Trident 中配置的任何 Volume 都將啟用 NAE 。如需更多資訊、請參閱link:../trident-reco/security-reco.html["Trident 如何與 NVE 和 NAE 搭配運作"]：。 | `false` 
+
+
+| `luksEncryption` | 啟用LUKS加密。請參閱 link:../trident-reco/security-reco.html#Use-Linux-Unified-Key-Setup-(LUKS)["使用Linux統一金鑰設定（LUKS）"]。僅限 SAN 。 | " 
+
+
+| `tieringPolicy` | 要使用的分層原則	`none` |  
+
+
+| `unixPermissions` | 新磁碟區的模式。*如果是SMB磁碟區、請保留空白。* | " 
+
+
+| `securityStyle` | 新磁碟區的安全樣式。NFS 支援 `mixed`和 `unix`安全樣式。SMB 支援 `mixed`和 `ntfs`安全樣式。 | NFS 預設為 `unix`。SMB 預設為 `ntfs`。 
+|===
+
+
+== 準備配置SMB磁碟區
+
+您可以使用驅動程式來配置 SMB 磁碟區 `ontap-nas`。完成下列步驟之前<<整合SAN和NAS驅動程式ONTAP>>。
+
+.開始之前
+在您使用驅動程式來配置 SMB 磁碟區之前 `ontap-nas`、您必須具備下列項目。
+
+* Kubernetes叢集具備Linux控制器節點、以及至少一個執行Windows Server 2019的Windows工作節點。Trident 僅支援掛載至 Windows 節點上執行的 Pod 的 SMB 磁碟區。
+* 至少有一個 Trident 機密包含您的 Active Directory 認證。產生機密 `smbcreds`：
++
+[source, console]
+----
+kubectl create secret generic smbcreds --from-literal username=user --from-literal password='password'
+----
+* 設定為Windows服務的SCSI Proxy。若要設定 `csi-proxy`、請參閱或link:https://github.com/Azure/aks-engine/blob/master/docs/topics/csi-proxy-windows.md["GitHub：適用於Windows的SCSI Proxy"^]、瞭link:https://github.com/kubernetes-csi/csi-proxy["GitHub：csi Proxy"^]解在 Windows 上執行的 Kubernetes 節點。
+
+
+.步驟
+. 建立SMB共用區。您可以使用共用資料夾嵌入式管理單元或使用 ONTAP CLI 、以兩種方式之一建立 SMB 管理員共用link:https://learn.microsoft.com/en-us/troubleshoot/windows-server/system-management-components/what-is-microsoft-management-console["Microsoft管理主控台"^]。若要使用ONTAP CLI建立SMB共用：
++
+.. 如有必要、請建立共用的目錄路徑結構。
++
+命令會 `vserver cifs share create`在建立共用時檢查 -path 選項中指定的路徑。如果指定的路徑不存在、則命令會失敗。
+
+.. 建立與指定SVM相關的SMB共用區：
++
+[source, console]
+----
+vserver cifs share create -vserver vserver_name -share-name share_name -path path [-share-properties share_properties,...] [other_attributes] [-comment text]
+----
+.. 確認共用區已建立：
++
+[source, console]
+----
+vserver cifs share show -share-name share_name
+----
++
+
+NOTE: 如需完整詳細資料、請參閱link:https://docs.netapp.com/us-en/ontap/smb-config/create-share-task.html["建立SMB共用區"^]。
+
+
+
+. 建立後端時、您必須設定下列項目以指定SMB Volume。有關 ONTAP 後端組態選項的所有 FSX link:trident-fsx-examples.html["FSX提供ONTAP 各種組態選項和範例"]、請參閱。
++
+[cols="3"]
+|===
+| 參數 | 說明 | 範例 
+
+
+| `smbShare` | 您可以指定下列其中一項：使用 Microsoft 管理主控台或 ONTAP CLI 建立的 SMB 共用名稱、或是允許 Trident 建立 SMB 共用的名稱。ONTAP 後端的 Amazon FSX 需要此參數。 | `smb-share` 
+
+
+| `nasType` | * 必須設定為 `smb`.*如果爲 null ，則默認爲 `nfs`。 | `smb` 
+
+
+| `securityStyle` | 新磁碟區的安全樣式。* 必須設定為 `ntfs` SMB Volume 或 `mixed`。 * | `ntfs`或 `mixed` SMB Volume 
+
+
+| `unixPermissions` | 新磁碟區的模式。SMB磁碟區*必須保留為空白。* | " 
+|===
+

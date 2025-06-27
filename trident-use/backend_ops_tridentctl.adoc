@@ -1,0 +1,106 @@
+---
+sidebar: sidebar 
+permalink: trident-use/backend_ops_tridentctl.html 
+keywords: backends, storage system, anf, cvs for aws, cvs for gcp, element, hci, solidfire, ontap, aff, fas, ontap select, configure backends, tridentctl, create backends, delete backends, view backends, update backends 
+summary: '瞭解如何使用執行後端管理作業 `tridentctl`。' 
+---
+= 使用tridentctl執行後端管理
+:hardbreaks:
+:allow-uri-read: 
+:icons: font
+:imagesdir: ../media/
+
+
+[role="lead"]
+瞭解如何使用執行後端管理作業 `tridentctl`。
+
+
+
+== 建立後端
+
+建立之後link:backends.html["後端組態檔"^]，請執行下列命令：
+
+[listing]
+----
+tridentctl create backend -f <backend-file> -n trident
+----
+如果後端建立失敗、表示後端組態有問題。您可以執行下列命令來檢視記錄、以判斷原因：
+
+[listing]
+----
+tridentctl logs -n trident
+----
+識別並修正組態檔的問題之後、只要再次執行命令即可 `create`。
+
+
+
+== 刪除後端
+
+若要從 Trident 刪除後端、請執行下列步驟：
+
+. 擷取後端名稱：
++
+[listing]
+----
+tridentctl get backend -n trident
+----
+. 刪除後端：
++
+[listing]
+----
+tridentctl delete backend <backend-name> -n trident
+----
+
+
+
+NOTE: 如果 Trident 已從這個後端佈建磁碟區和快照、但該後端仍存在、則刪除後端將會阻止新磁碟區由其進行佈建。後端將繼續存在於「刪除」狀態。
+
+
+
+== 檢視現有的後端
+
+若要檢視Trident知道的後端、請執行下列步驟：
+
+* 若要取得摘要、請執行下列命令：
++
+[listing]
+----
+tridentctl get backend -n trident
+----
+* 若要取得所有詳細資料、請執行下列命令：
++
+[listing]
+----
+tridentctl get backend -o json -n trident
+----
+
+
+
+
+== 更新後端
+
+建立新的後端組態檔之後、請執行下列命令：
+
+[listing]
+----
+tridentctl update backend <backend-name> -f <backend-file> -n trident
+----
+如果後端更新失敗、表示後端組態有問題、或是您嘗試了無效的更新。您可以執行下列命令來檢視記錄、以判斷原因：
+
+[listing]
+----
+tridentctl logs -n trident
+----
+識別並修正組態檔的問題之後、只要再次執行命令即可 `update`。
+
+
+
+== 識別使用後端的儲存類別
+
+這是您可以使用 JSON 來回答的問題類型範例、此問題可 `tridentctl`為後端物件輸出。這會使用 `jq`您需要安裝的公用程式。
+
+[listing]
+----
+tridentctl get backend -o json | jq '[.items[] | {backend: .name, storageClasses: [.storage[].storageClasses]|unique}]'
+----
+這也適用於使用建立的後端 `TridentBackendConfig`。

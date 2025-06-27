@@ -1,0 +1,77 @@
+---
+sidebar: sidebar 
+permalink: trident-docker/collect-logs-docker.html 
+keywords: deploy, Trident, trident for docker, docker, logs, binary, managed plugin 
+summary: 您可以收集記錄以協助疑難排解。收集記錄的方法會因執行Docker外掛程式的方式而有所不同。 
+---
+= 收集記錄
+:hardbreaks:
+:allow-uri-read: 
+:icons: font
+:imagesdir: ../media/
+
+
+[role="lead"]
+您可以收集記錄以協助疑難排解。收集記錄的方法會因執行Docker外掛程式的方式而有所不同。
+
+
+
+== 收集記錄以進行疑難排解
+
+.步驟
+. 如果您使用建議的託管外掛程式方法（亦即使用命令）來執行 Trident `docker plugin` 、請依下列方式檢視：
++
+[source, console]
+----
+docker plugin ls
+----
++
+[listing]
+----
+ID                  NAME                DESCRIPTION                          ENABLED
+4fb97d2b956b        netapp:latest       nDVP - NetApp Docker Volume Plugin   false
+journalctl -u docker | grep 4fb97d2b956b
+----
++
+標準記錄層級應可讓您診斷大多數問題。如果您覺得還不夠、可以啟用偵錯記錄。
+
+. 若要啟用除錯記錄、請安裝已啟用除錯記錄的外掛程式：
++
+[source, console]
+----
+docker plugin install netapp/trident-plugin:<version> --alias <alias> debug=true
+----
++
+或者、當外掛程式已安裝時、請啟用偵錯記錄功能：
+
++
+[source, console]
+----
+docker plugin disable <plugin>
+----
++
+[source, console]
+----
+docker plugin set <plugin> debug=true
+----
++
+[source, console]
+----
+docker plugin enable <plugin>
+----
+. 如果您在主機上執行二進位檔本身、則可在主機的目錄中使用記錄檔 `/var/log/netappdvp`。若要啟用偵錯記錄、請指定 `-debug`執行外掛程式的時間。
+
+
+
+
+== 一般疑難排解秘訣
+
+* 新使用者最常遇到的問題是組態錯誤、導致外掛程式無法初始化。發生這種情況時、當您嘗試安裝或啟用外掛程式時、可能會看到如下訊息：
++
+`Error response from daemon: dial unix /run/docker/plugins/<id>/netapp.sock: connect: no such file or directory`
+
++
+這表示外掛程式無法啟動。幸運的是、外掛程式是以全方位的記錄功能打造而成、可協助您診斷大部分可能遇到的問題。
+
+* 如果在將 PV 掛載到容器時發生問題、請確定 `rpcbind`已安裝並正在執行。使用主機作業系統所需的套件管理程式、並檢查是否 `rpcbind`正在執行。您可以執行或其等效的來檢查 rpcbind 服務的狀態 `systemctl status rpcbind`。
+

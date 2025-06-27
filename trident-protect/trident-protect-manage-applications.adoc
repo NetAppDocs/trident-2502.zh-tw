@@ -1,0 +1,134 @@
+---
+sidebar: sidebar 
+permalink: trident-protect/trident-protect-manage-applications.html 
+keywords: appvault, data protection, custom resource, namespace, application, cluster 
+summary: 您可以建立應用程式 CR 和相關的 AppVault CR ，讓 Trident Protect 瞭解您想要管理的應用程式。 
+---
+= 使用 Trident Protect 定義管理應用程式
+:hardbreaks:
+:allow-uri-read: 
+:nofooter: 
+:icons: font
+:linkattrs: 
+:imagesdir: ../media/
+
+
+[role="lead"]
+您可以建立應用程式 CR 和相關的 AppVault CR ，以定義您想要使用 Trident Protect 管理的應用程式。
+
+
+
+== 建立 AppVault CR
+
+您需要建立 AppVault CR ，以便在應用程式上執行資料保護作業時使用，而 AppVault CR 必須位於安裝 Trident Protect 的叢集上。AppVault CR 專屬於您的環境，如需 AppVault CRS 的範例，請參閱link:trident-protect-appvault-custom-resources.html["AppVault 自訂資源。"]
+
+
+
+== 定義應用程式
+
+您需要定義每個要使用 Trident Protect 管理的應用程式。您可以手動建立應用程式 CR 或使用 Trident Protect CLI 來定義應用程式以進行管理。
+
+[role="tabbed-block"]
+====
+.使用 CR 新增應用程式
+--
+.步驟
+. 建立目的地應用程式 CR 檔案：
++
+.. 建立自訂資源（ CR ）檔案並命名（例如 `maria-app.yaml`）。
+.. 設定下列屬性：
++
+*** * metadata.name*: （ _required ）應用程式自訂資源的名稱。請注意您選擇的名稱，因為保護作業所需的其他 CR 檔案都會參照此值。
+*** * spec.includedNamespaces*: （ _required ）使用命名空間和標籤選取器來指定應用程式使用的命名空間和資源。應用程式命名空間必須是此清單的一部分。標籤選取器為選用項目，可用於篩選每個指定命名空間內的資源。
+*** * spec.includedClusterScopedResources*: （ _Optional_ ）使用此屬性來指定要包含在應用程式定義中的叢集範圍資源。此屬性可讓您根據這些資源的群組，版本，種類和標籤來選取這些資源。
++
+**** *groupVersionKind* ：（ _required _ ）指定叢集範圍資源的 API 群組，版本及種類。
+**** *labelSelector * ：（ _Optional_ ）根據叢集範圍的資源標籤來篩選資源。
+
+
+*** * metadata.annotations.protect.trident.netapp.io/skip-vm-freeze*: （ _Optional_ ）此註釋僅適用於從虛擬機器定義的應用程式，例如 KubeVirt 環境，檔案系統會在快照之前凍結。指定此應用程式是否可以在快照期間寫入檔案系統。如果設為 true ，應用程式會忽略全域設定，並在快照期間寫入檔案系統。如果設置爲 false ，則應用程序將忽略全局設置，並在快照期間凍結文件系統。如果指定，但應用程式在應用程式定義中沒有虛擬機器，則會忽略附註。如果未指定，則應用程式會遵循link:trident-protect-requirements.html#protecting-data-with-kubevirt-vms["全域 Trident 保護凍結設定"]。
++
+[NOTE]
+====
+如果您需要在建立應用程式之後套用此註釋，可以使用下列命令：
+
+[source, console]
+----
+kubectl annotate application -n <application CR namespace> <application CR name> protect.trident.netapp.io/skip-vm-freeze="true"
+----
+====
++
+YAML 範例：
+
++
+[source, yaml]
+----
+apiVersion: protect.trident.netapp.io/v1
+kind: Application
+metadata:
+  annotations:
+    protect.trident.netapp.io/skip-vm-freeze: "false"
+  name: my-app-name
+  namespace: my-app-namespace
+spec:
+  includedNamespaces:
+    - namespace: namespace-1
+      labelSelector:
+        matchLabels:
+          app: example-app
+    - namespace: namespace-2
+      labelSelector:
+        matchLabels:
+          app: another-example-app
+  includedClusterScopedResources:
+    - groupVersionKind:
+        group: rbac.authorization.k8s.io
+        kind: ClusterRole
+        version: v1
+      labelSelector:
+        matchLabels:
+          mylabel: test
+
+----
+
+
+
+
+. 建立應用程式 CR 以符合您的環境之後，請套用 CR 。例如：
++
+[source, console]
+----
+kubectl apply -f maria-app.yaml
+----
+
+
+--
+.使用 CLI 新增應用程式
+--
+.步驟
+. 使用下列其中一個範例建立及套用應用程式定義，以環境中的資訊取代方括號中的值。您可以在應用程式定義中加入命名空間和資源，使用以逗號分隔的清單，以及範例中所示的引數。
++
+您可以選擇在建立應用程式時使用註釋，以指定應用程式是否可以在快照期間寫入檔案系統。這僅適用於從虛擬機器定義的應用程式，例如 KubeVirt 環境，檔案系統會在快照之前凍結。如果您將註釋設為 `true`，應用程式會忽略全域設定，並在快照期間寫入檔案系統。如果將其設置爲 `false`，則應用程序將忽略全局設置，並在快照期間凍結文件系統。如果您使用附註，但應用程式在應用程式定義中沒有虛擬機器，則會忽略附註。如果您不使用註釋，應用程式會遵循link:trident-protect-requirements.html#protecting-data-with-kubevirt-vms["全域 Trident 保護凍結設定"]。
+
++
+若要在使用 CLI 建立應用程式時指定評註，您可以使用此 `--annotation`旗標。
+
++
+** 建立應用程式，並使用通用設定來執行檔案系統凍結行為：
++
+[source, console]
+----
+tridentctl-protect create application <my_new_app_cr_name> --namespaces <namespaces_to_include> --csr <cluster_scoped_resources_to_include> --namespace <my-app-namespace>
+----
+** 建立應用程式並設定檔案系統凍結行為的本機應用程式設定：
++
+[source, console]
+----
+tridentctl-protect create application <my_new_app_cr_name> --namespaces <namespaces_to_include> --csr <cluster_scoped_resources_to_include> --namespace <my-app-namespace> --annotation protect.trident.netapp.io/skip-vm-freeze=<"true"|"false">
+----
+
+
+
+
+--
+====

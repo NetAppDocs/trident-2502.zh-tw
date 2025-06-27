@@ -1,0 +1,175 @@
+---
+sidebar: sidebar 
+permalink: trident-use/volume-share.html 
+keywords: volref, volume reference, share, pvc, pv, nfs, namespace, cvna, cross-namespace, sharing 
+summary: 使用 Trident 、您可以在主要命名空間中建立磁碟區、並在一或多個次要命名空間中共用該磁碟區。 
+---
+= 跨命名空間共用NFS磁碟區
+:hardbreaks:
+:allow-uri-read: 
+:icons: font
+:imagesdir: ../media/
+
+
+[role="lead"]
+使用 Trident 、您可以在主要命名空間中建立磁碟區、並在一或多個次要命名空間中共用該磁碟區。
+
+
+
+== 功能
+
+TridentVolume Reference CR 可讓您安全地跨一或多個 Kubernetes 命名空間共用 ReadWriteMany （ rwx ） NFS 磁碟區。此Kubernetes原生解決方案具有下列優點：
+
+* 多層存取控制、確保安全性
+* 可搭配所有Trident NFS Volume驅動程式使用
+* 不依賴tridentctl或任何其他非原生Kubernetes功能
+
+
+此圖說明兩個Kubernetes命名空間之間的NFS Volume共用。
+
+image::cross-namespace-sharing.png[跨命名空間共用的概念性圖表。]
+
+
+
+== 快速入門
+
+您只需幾個步驟就能設定NFS Volume共享。
+
+.image:https://raw.githubusercontent.com/NetAppDocs/common/main/media/number-1.png["一"]設定來源 PVC 以共用磁碟區
+[role="quick-margin-para"]
+來源命名空間擁有者授予存取來源PVc中資料的權限。
+
+.image:https://raw.githubusercontent.com/NetAppDocs/common/main/media/number-2.png["二"]授予在目的地命名空間中建立 CR 的權限
+[role="quick-margin-para"]
+叢集管理員授予目的地命名空間擁有者建立TridentVolume Reference CR的權限。
+
+.image:https://raw.githubusercontent.com/NetAppDocs/common/main/media/number-3.png["三"]在目的地命名空間中建立 TridentVolume Reference
+[role="quick-margin-para"]
+目的地命名空間的擁有者會建立TridentVolume Reference CR來參照來源PVC。
+
+.image:https://raw.githubusercontent.com/NetAppDocs/common/main/media/number-4.png["四"]在目的地命名空間中建立次級 PVC
+[role="quick-margin-para"]
+目的地命名空間的擁有者會建立從屬的PVc、以使用來源PVc的資料來源。
+
+
+
+== 設定來源和目的地命名空間
+
+為了確保安全性、跨命名空間共用需要來源命名空間擁有者、叢集管理員和目的地命名空間擁有者的協同作業與行動。使用者角色會在每個步驟中指定。
+
+.步驟
+. * 來源命名空間擁有者： * (`pvc1`在來源命名空間中建立 PVC (`namespace2`（ PVC ）、以授予與目的地命名空間共用的權限）、 `shareToNamespace`
++
+[source, yaml]
+----
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: pvc1
+  namespace: namespace1
+  annotations:
+    trident.netapp.io/shareToNamespace: namespace2
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: trident-csi
+  resources:
+    requests:
+      storage: 100Gi
+----
++
+Trident 會建立 PV 及其後端 NFS 儲存磁碟區。
+
++
+[NOTE]
+====
+** 您可以使用以逗號分隔的清單、將永久虛擬儲存設備共用至多個命名空間。例如 `trident.netapp.io/shareToNamespace: namespace2,namespace3,namespace4`：。
+** 您可以使用共用所有命名空間 `*`。例如、 `trident.netapp.io/shareToNamespace: *`
+** 您可以隨時更新 PVC 以納入 `shareToNamespace`附註。
+
+
+====
+. *叢集管理：*建立自訂角色和KUbeconfig、以授予目的地命名空間擁有者權限、以便在目的地命名空間中建立TridentVolume Reference CR。
+. *Destination 命名空間擁有者： * 在指向來源命名空間的目的地命名空間中建立 TridentVolume Reference CR `pvc1` 。
++
+[source, yaml]
+----
+apiVersion: trident.netapp.io/v1
+kind: TridentVolumeReference
+metadata:
+  name: my-first-tvr
+  namespace: namespace2
+spec:
+  pvcName: pvc1
+  pvcNamespace: namespace1
+----
+. * 目的地命名空間擁有者： * (`pvc2`在目的地命名空間中建立 PVC (`namespace2`）使用 `shareFromPVC`註釋來指定來源 PVC 。
++
+[source, yaml]
+----
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  annotations:
+    trident.netapp.io/shareFromPVC: namespace1/pvc1
+  name: pvc2
+  namespace: namespace2
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: trident-csi
+  resources:
+    requests:
+      storage: 100Gi
+----
++
+
+NOTE: 目的地PVc的大小必須小於或等於來源PVc。
+
+
+
+.結果
+Trident 會讀取 `shareFromPVC`目的地 PVC 上的附註、並將目的地 PV 建立為次級磁碟區、而不會有本身的儲存資源指向來源 PV 、並共用來源 PV 儲存資源。目的地的PVc和PV似乎正常連結。
+
+
+
+== 刪除共享Volume
+
+您可以刪除跨多個命名空間共用的磁碟區。Trident 將移除來源命名空間上的磁碟區存取權、並維護共用該磁碟區的其他命名空間的存取權。移除所有參照該 Volume 的命名空間時、 Trident 會刪除該 Volume 。
+
+
+
+== 用於 `tridentctl get`查詢從屬磁碟區
+
+您可以使用[`tridentctl`公用程式執行 `get`命令來取得附屬磁碟區。如需更多資訊、請參閱連結： ../../lce-reference Trident / tridentctl.html[`tridentctl` 命令和選項 ] 。
+
+[listing]
+----
+Usage:
+  tridentctl get [option]
+----
+旗標：
+
+* ``-h, --help`：有關 Volume 的幫助。
+* `--parentOfSubordinate string`：將查詢限制在從屬來源 Volume 。
+* `--subordinateOf string`：將查詢限制在 Volume 的從屬。
+
+
+
+
+== 限制
+
+* Trident 無法防止目的地命名空間寫入共用磁碟區。您應該使用檔案鎖定或其他程序來防止覆寫共用Volume資料。
+* 您無法移除或 `shareFromNamespace`註釋、或刪除 CR 、 `TridentVolumeReference`以撤銷對來源 PVC 的存取權 `shareToNamespace`。若要撤銷存取權、您必須刪除從屬的PVc。
+* 在從屬磁碟區上無法執行快照、複製和鏡射。
+
+
+
+
+== 以取得更多資訊
+
+若要深入瞭解跨命名空間Volume存取：
+
+* 請造訪。link:https://cloud.netapp.com/blog/astra-blg-sharing-volumes-between-namespaces-say-hello-to-cross-namespace-volume-access["在命名空間之間共用磁碟區：歡迎使用跨命名空間磁碟區存取"^]
+* 觀看上的示範 link:https://media.netapp.com/page/9071d19d-1438-5ed3-a7aa-ea4d73c28b7f/solutions-products["NetAppTV"^]。
+

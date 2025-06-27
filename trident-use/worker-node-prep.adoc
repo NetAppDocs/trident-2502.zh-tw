@@ -1,0 +1,436 @@
+---
+sidebar: sidebar 
+permalink: trident-use/worker-node-prep.html 
+keywords: storage class, manage storage class, storage classes, kubernetes storage classes, worker node, nfs, iscsi, kubernetes clusters, self-healing, healing, nvme, tcp 
+summary: Kubernetes叢集中的所有工作節點都必須能夠掛載您已為Pod配置的磁碟區。如果您使用的是其中一個後端的ONTAP-NAS、ONTAP-NAS-節約、ONTAP-NAS-Flexgroup驅動程式、則您的工作節點需要NFS工具。否則他們需要iSCSI工具。 
+---
+= 準備工作節點
+:hardbreaks:
+:allow-uri-read: 
+:icons: font
+:imagesdir: ../media/
+
+
+[role="lead"]
+Kubernetes叢集中的所有工作節點都必須能夠掛載您已為Pod配置的磁碟區。若要準備工作節點，您必須根據您選擇的驅動程式來安裝 NFS ， iSCSI ， NVMe / TCP 或 FC 工具。
+
+
+
+== 選擇適當的工具
+
+如果您使用的是驅動程式組合、則應該安裝所有必要的驅動程式工具。Red Hat Enterprise Linux CoreOS （ RHCOS ）的最新版本預設會安裝工具。
+
+.NFS工具
+link:https://docs.netapp.com/us-en/trident/trident-use/worker-node-prep.html#nfs-volumes["安裝 NFS 工具"]如果您使用的是 `ontap-nas`：、 `ontap-nas-economy`、、 `ontap-nas-flexgroup` `azure-netapp-files` `gcp-cvs`、。
+
+.iSCSI工具
+link:https://docs.netapp.com/us-en/trident/trident-use/worker-node-prep.html#install-the-iscsi-tools["安裝iSCSI工具"]如果您使用的是： `ontap-san`、、 `ontap-san-economy` `solidfire-san`。
+
+.NVMe 工具
+link:https://docs.netapp.com/us-en/trident/trident-use/worker-node-prep.html#nvmetcp-volumes["安裝 NVMe 工具"]如果您使用 `ontap-san`非揮發性記憶體高速（ NVMe ） over TCP （ NVMe / TCP ）傳輸協定。
+
+
+NOTE: NetApp 建議使用 ONTAP 9.12 或更新版本來處理 NVMe / TCP 。
+
+.SCSI over FC 工具
+請參閱link:https://docs.netapp.com/us-en/ontap/san-config/configure-fc-nvme-hosts-ha-pairs-reference.html["設定 FC 擴大機、 FC-NVMe SAN 主機的方法"]如需設定 FC 和 FC-NVMe SAN 主機的詳細資訊，。
+
+link:https://docs.netapp.com/us-en/trident/trident-use/worker-node-prep.html#install-the-fc-tools["安裝 FC 工具"]如果您使用 `ontap-san` sanType `fcp` （ SCSI over FC ）。
+
+* 要考慮的要點 * ： * OpenShift 和 KubeVirt 環境支援 SCSI over FC 。* Docker 不支援 SCSI over FC 。* iSCSI 自我修復不適用於 FC 上的 SCSI 。
+
+
+
+== 節點服務探索
+
+Trident 會嘗試自動偵測節點是否可以執行 iSCSI 或 NFS 服務。
+
+
+NOTE: 節點服務探索可識別探索到的服務、但無法保證服務已正確設定。相反地、沒有探索到的服務並不保證磁碟區掛載會失敗。
+
+.檢閱事件
+Trident 會為節點建立事件、以識別探索到的服務。若要檢閱這些事件、請執行：
+
+[listing]
+----
+kubectl get event -A --field-selector involvedObject.name=<Kubernetes node name>
+----
+.檢閱探索到的服務
+Trident 會識別 Trident 節點 CR 上每個節點啟用的服務。若要檢視探索到的服務、請執行：
+
+[listing]
+----
+tridentctl get node -o wide -n <Trident namespace>
+----
+
+
+== NFS 磁碟區
+
+使用作業系統的命令來安裝NFS工具。確保NFS服務在開機期間啟動。
+
+[role="tabbed-block"]
+====
+.RHEL 8以上
+--
+[listing]
+----
+sudo yum install -y nfs-utils
+----
+--
+.Ubuntu
+--
+[listing]
+----
+sudo apt-get install -y nfs-common
+----
+--
+====
+
+WARNING: 安裝NFS工具之後、請重新啟動工作節點、以避免將磁碟區附加至容器時發生故障。
+
+
+
+== iSCSI磁碟區
+
+Trident 可以自動建立 iSCSI 工作階段、掃描 LUN 、探索多重路徑裝置、將其格式化、並將其裝載至 Pod 。
+
+
+
+=== iSCSI自我修復功能
+
+對於 ONTAP 系統、 Trident 每五分鐘執行一次 iSCSI 自我修復、以：
+
+. *識別*所需的iSCSI工作階段狀態和目前的iSCSI工作階段狀態。
+. *比較*所需狀態與目前狀態、以識別所需的維修。Trident 會決定維修優先順序、以及何時優先執行維修。
+. *執行必要的修復*、以將目前的iSCSI工作階段狀態恢復至所需的iSCSI工作階段狀態。
+
+
+
+NOTE: 自我修復活動記錄位於個別 Dem隨 選裝置上的容器中 `trident-main`。若要檢視記錄、您必須在 Trident 安裝期間將其設 `debug`為「 true 」。
+
+Trident iSCSI 自我修復功能有助於防止：
+
+* 發生網路連線問題後、可能會發生過時或不正常的iSCSI工作階段。如果工作階段過時、 Trident 會在登出前等待七分鐘、以重新建立與入口網站的連線。
++
+
+NOTE: 例如、如果在儲存控制器上旋轉CHAP機密、而網路失去連線、則舊的（_stal__）CHAP機密可能會持續存在。自我修復可辨識此情況、並自動重新建立工作階段、以套用更新的CHAP機密。
+
+* 遺失iSCSI工作階段
+* 遺失LUN
+
+
+* 升級 Trident 之前應考慮的要點 *
+
+* 如果僅使用每個節點的 igroup （於 23.04+ 推出）、 iSCSI 自我修復將會為 SCSI 匯流排中的所有裝置啟動 SCSI 重新掃描。
+* 如果僅使用後端範圍的 igroup （自 2004 年 23 日起已過時）、 iSCSI 自我修復將會針對 SCSI 匯流排中的確切 LUN ID 啟動 SCSI 重新掃描。
+* 如果混合使用每個節點的 igroup 和後端範圍的 igroup 、 iSCSI 自我修復將會啟動 SCSI 重新掃描、以取得 SCSI 匯流排中的確切 LUN ID 。
+
+
+
+
+=== 安裝iSCSI工具
+
+使用適用於您作業系統的命令來安裝iSCSI工具。
+
+.開始之前
+* Kubernetes叢集中的每個節點都必須具有唯一的IQN。*這是必要的先決條件*。
+* 如果使用 RHCOS 4.5 或更新版本、或其他與 RHEL 相容的 Linux 套裝作業系統搭配 `solidfire-san`驅動程式和 Element OS 12.5 或更舊版本、請確保在中將 CHAP 驗證演算法設為 MD5 `/etc/iscsi/iscsid.conf` 。元素 12.7 提供符合安全 FIPS 標準的 CHAP 演算法 SHA1 、 SHA-256 和 SHA3-256 。
++
+[listing]
+----
+sudo sed -i 's/^\(node.session.auth.chap_algs\).*/\1 = MD5/' /etc/iscsi/iscsid.conf
+----
+* 當使用搭配 iSCSI PV 執行 RHEL/Red Hat Enterprise Linux CoreOS （ RHCOS ）的工作節點時，請在 StorageClass 中指定 `discard` mountOption 以執行內嵌空間回收。請參閱 https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html/managing_file_systems/discarding-unused-blocks_managing-file-systems["Red Hat 說明文件"^]。
+
+
+[role="tabbed-block"]
+====
+.RHEL 8以上
+--
+. 安裝下列系統套件：
++
+[listing]
+----
+sudo yum install -y lsscsi iscsi-initiator-utils device-mapper-multipath
+----
+. 檢查iscsite-initier-utils版本是否為6.6.0.874-2.el7或更新版本：
++
+[listing]
+----
+rpm -q iscsi-initiator-utils
+----
+. 啟用多重路徑：
++
+[listing]
+----
+sudo mpathconf --enable --with_multipathd y --find_multipaths n
+----
++
+
+NOTE: 確保 `/etc/multipath.conf`包含 `find_multipaths no`在 `defaults`中。
+
+. 確定 `iscsid`和 `multipathd`正在執行：
++
+[listing]
+----
+sudo systemctl enable --now iscsid multipathd
+----
+. 啓用和啓動 `iscsi`：
++
+[listing]
+----
+sudo systemctl enable --now iscsi
+----
+
+
+--
+.Ubuntu
+--
+. 安裝下列系統套件：
++
+[listing]
+----
+sudo apt-get install -y open-iscsi lsscsi sg3-utils multipath-tools scsitools
+----
+. 檢查開放式iSCSI版本是否為2.0.874-5ubuntu2．10或更新版本（適用於雙聲網路）或2.0.874-7.1ubuntu6.1或更新版本（適用於焦點）：
++
+[listing]
+----
+dpkg -l open-iscsi
+----
+. 將掃描設為手動：
++
+[listing]
+----
+sudo sed -i 's/^\(node.session.scan\).*/\1 = manual/' /etc/iscsi/iscsid.conf
+----
+. 啟用多重路徑：
++
+[listing]
+----
+sudo tee /etc/multipath.conf <<-EOF
+defaults {
+    user_friendly_names yes
+    find_multipaths no
+}
+EOF
+sudo systemctl enable --now multipath-tools.service
+sudo service multipath-tools restart
+----
++
+
+NOTE: 確保 `/etc/multipath.conf`包含 `find_multipaths no`在 `defaults`中。
+
+. 確定 `open-iscsi`已啟用和 `multipath-tools`執行：
++
+[listing]
+----
+sudo systemctl status multipath-tools
+sudo systemctl enable --now open-iscsi.service
+sudo systemctl status open-iscsi
+----
++
+
+NOTE: 對於 Ubuntu 18.04 、您必須先探索目標連接埠 `iscsiadm`、然後才能 `open-iscsi`啟動 iSCSI 常駐程式。您也可以修改 `iscsi`服務以自動啟動 `iscsid`。
+
+
+
+--
+====
+
+
+=== 設定或停用 iSCSI 自我修復
+
+您可以設定下列 Trident iSCSI 自我修復設定、以修復過時的工作階段：
+
+* *iSCSI 自我修復時間間隔 * ：決定啟動 iSCSI 自我修復的頻率（預設值： 5 分鐘）。您可以設定較小的數字、或設定較大的數字、將其設定為較常執行。
+
+
+[NOTE]
+====
+將 iSCSI 自我修復時間間隔設為 0 會完全停止 iSCSI 自我修復。我們不建議停用 iSCSI 自我修復功能；只有在 iSCSI 自我修復功能未如預期運作或無法進行偵錯時、才應停用 iSCSI 自我修復功能。
+
+====
+* *iSCSI 自我修復等待時間 * ：決定 iSCSI 自我修復等待的時間、再登出不正常的工作階段並再次嘗試登入（預設值： 7 分鐘）。您可以將其設定為較大的數目、以便識別為不正常的工作階段必須等待較長時間才能登出、然後再嘗試重新登入、或是較小的數目來登出和較早登入。
+
+
+[role="tabbed-block"]
+====
+.掌舵
+--
+若要設定或變更 iSCSI 自我修復設定、請在 helm 安裝或 helm 更新期間傳遞 `iscsiSelfHealingInterval`和 `iscsiSelfHealingWaitTime`參數。
+
+以下範例將 iSCSI 自我修復間隔設為 3 分鐘、而自我修復等候時間設為 6 分鐘：
+
+[listing]
+----
+helm install trident trident-operator-100.2502.0.tgz --set iscsiSelfHealingInterval=3m0s --set iscsiSelfHealingWaitTime=6m0s -n trident
+----
+--
+.試用
+--
+若要設定或變更 iSCSI 自我修復設定、請在安裝或更新 tridentctl 期間傳遞 `iscsi-self-healing-interval`和 `iscsi-self-healing-wait-time`參數。
+
+以下範例將 iSCSI 自我修復間隔設為 3 分鐘、而自我修復等候時間設為 6 分鐘：
+
+[listing]
+----
+tridentctl install --iscsi-self-healing-interval=3m0s --iscsi-self-healing-wait-time=6m0s -n trident
+----
+--
+====
+
+
+== NVMe / TCP 磁碟區
+
+使用適用於您作業系統的命令來安裝 NVMe 工具。
+
+[NOTE]
+====
+* NVMe 需要 RHEL 9 或更新版本。
+* 如果 Kubernetes 節點的核心版本太舊、或 NVMe 套件無法用於您的核心版本、您可能必須使用 NVMe 套件將節點的核心版本更新為一個。
+
+
+====
+[role="tabbed-block"]
+====
+.RHEL 9
+--
+[listing]
+----
+sudo yum install nvme-cli
+sudo yum install linux-modules-extra-$(uname -r)
+sudo modprobe nvme-tcp
+----
+--
+.Ubuntu
+--
+[listing]
+----
+sudo apt install nvme-cli
+sudo apt -y install linux-modules-extra-$(uname -r)
+sudo modprobe nvme-tcp
+----
+--
+====
+
+
+=== 驗證安裝
+
+安裝後、請使用命令確認 Kubernetes 叢集中的每個節點都有唯一的 NQN ：
+
+[listing]
+----
+cat /etc/nvme/hostnqn
+----
+
+WARNING: Trident 會修改此 `ctrl_device_tmo`值、確保 NVMe 在故障時不會放棄路徑。請勿變更此設定。
+
+
+
+== FC 磁碟區上的 SCSI
+
+您現在可以搭配 Trident 使用光纖通道（ FC ）傳輸協定，在 ONTAP 系統上配置及管理儲存資源。
+
+
+
+=== 先決條件
+
+設定 FC 所需的網路和節點設定。
+
+
+
+==== 網路設定
+
+. 取得目標介面的 WWPN 。如需詳細資訊、請參閱 https://docs.netapp.com/us-en/ontap-cli//network-interface-show.html["網路介面顯示"^] 。
+. 取得啟動器（主機）介面的 WWPN 。
++
+請參閱對應的主機作業系統公用程式。
+
+. 使用主機和目標的 WWPN 在 FC 交換器上設定分區。
++
+如需詳細資訊，請參閱重新輸入交換器廠商文件。
+
++
+如需詳細資訊，請參閱下列 ONTAP 文件：
+
++
+** https://docs.netapp.com/us-en/ontap/san-config/fibre-channel-fcoe-zoning-concept.html["Fibre Channel和FCoE分區總覽"^]
+** https://docs.netapp.com/us-en/ontap/san-config/configure-fc-nvme-hosts-ha-pairs-reference.html["設定 FC 擴大機、 FC-NVMe SAN 主機的方法"^]
+
+
+
+
+
+
+=== 安裝 FC 工具
+
+使用作業系統的命令來安裝FC工具。
+
+* 當使用搭配 FC PV 執行 RHEL/Red Hat Enterprise Linux CoreOS （ RHCOS ）的工作節點時，請在 StorageClass 中指定 `discard` mountOption 以執行內嵌空間回收。請參閱 https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html/managing_file_systems/discarding-unused-blocks_managing-file-systems["Red Hat 說明文件"^]。
+
+
+[role="tabbed-block"]
+====
+.RHEL 8以上
+--
+. 安裝下列系統套件：
++
+[listing]
+----
+sudo yum install -y lsscsi device-mapper-multipath
+----
+. 啟用多重路徑：
++
+[listing]
+----
+sudo mpathconf --enable --with_multipathd y --find_multipaths n
+----
++
+
+NOTE: 確保 `/etc/multipath.conf`包含 `find_multipaths no`在 `defaults`中。
+
+. 確定 `multipathd`執行中：
++
+[listing]
+----
+sudo systemctl enable --now multipathd
+----
+
+
+--
+.Ubuntu
+--
+. 安裝下列系統套件：
++
+[listing]
+----
+sudo apt-get install -y lsscsi sg3-utils multipath-tools scsitools
+----
+. 啟用多重路徑：
++
+[listing]
+----
+sudo tee /etc/multipath.conf <<-EOF
+defaults {
+    user_friendly_names yes
+    find_multipaths no
+}
+EOF
+sudo systemctl enable --now multipath-tools.service
+sudo service multipath-tools restart
+----
++
+
+NOTE: 確保 `/etc/multipath.conf`包含 `find_multipaths no`在 `defaults`中。
+
+. 確定 `multipath-tools`已啟用並正在執行：
++
+[listing]
+----
+sudo systemctl status multipath-tools
+----
+
+
+--
+====
