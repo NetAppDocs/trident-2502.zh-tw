@@ -4625,7 +4625,6 @@
   <block id="b414f77491b337ef4f2181d2e6a210b3" category="cell">"false" * 如果指定，請針對 ASA R2* 將其設為<block ref="b326b5062b2f0e69046810717534cb09" prefix=" " category="inline-code"></block>。</block>
   <block id="b8ae61dc50cf8e8b79e68bc4a8d36393" category="cell"><block ref="0f179ba2bc32ab5d8f60692f5b800c86" prefix="" category="inline-code"></block></block>
   <block id="a56dcba8eacdac67fb510e1434d560d8" category="inline-link-macro">使用Linux統一金鑰設定（LUKS）</block>
-  <block id="e29a6d196232b6cdf3ae52f871ba291b" category="cell">啟用LUKS加密。請參閱 <block ref="569f9f91cdcc19909b8acbf6f423daf7" category="inline-link-macro-rx"></block>。NVMe / TCP 不支援 LUKS 加密。</block>
   <block id="f50abf25c5eef34d11b26eb12f993fca" category="cell">針對 ASA R2 將設為<block ref="68934a3e9455fa72420237eb05902327" prefix=" " category="inline-code"></block>。</block>
   <block id="00f7c04dee401ca096a84ce3ce7cb61d" category="cell">分層原則以使用「無」 * 請勿指定用於 ASA R2* 。</block>
   <block id="e78c177a9e5dfcf995756c1f03c48529" category="admonition">對於使用驅動程式建立的所有磁碟區<block ref="73a3350a1b91aeb6e2836fdf5975672c" prefix=" " category="inline-code"></block>、 Trident 會為 FlexVol 額外增加 10% 的容量、以容納 LUN 中繼資料。LUN的配置大小與使用者在PVc中要求的大小完全相同。Trident 將 10% 新增至 FlexVol （在 ONTAP 中顯示為可用大小）。使用者現在可以取得所要求的可用容量。此變更也可防止LUN成為唯讀、除非可用空間已充分利用。這不適用於ONTAP-san經濟型。</block>
@@ -5498,4 +5497,5 @@
   <block id="e8ce47501426b8525633fc30daf17d7a" category="sidebar">自訂磁碟區名稱</block>
   <block id="f18a50f02f48551895d57b81dd288142" category="sidebar">跨命名空間共用NFS磁碟區</block>
   <block id="62486fa65fc31c383ace8989549632ad" category="sidebar">使用快照</block>
+  <block id="b71ccf1062cee8c376a7eb37e3c42603" category="cell">啟用LUKS加密。請參閱 <block ref="569f9f91cdcc19909b8acbf6f423daf7" category="inline-link-macro-rx"></block>。</block>
 </blocks>
