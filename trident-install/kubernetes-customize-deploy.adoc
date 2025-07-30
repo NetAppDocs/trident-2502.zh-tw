@@ -118,9 +118,6 @@ WARNING: `spec.namespace`在中指定 `TridentOrchestrator`、表示安裝 Tride
 
 
 | `nodePrep` | 可讓 Trident 準備 Kubernetes 叢集的節點、以使用指定的資料儲存傳輸協定來管理磁碟區。* 目前 `iscsi`是唯一支援的值。 * |  
-
-
-| `enableAutoBackendConfig` | 啟用自動後端組態，可根據輸入參數順暢建立後端和儲存類別。 | 無預設值；選用 
 |===
 
 NOTE: 如需格式化 Pod 參數的詳細資訊link:https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/["將Pod指派給節點"^]、請參閱。
