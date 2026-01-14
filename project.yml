@@ -9,11 +9,14 @@ settings:
   pdf:
     allow-incremental: false
   rss_page: trident-rn.html
+  downlevel: true
   versions:
   - version-number: '25.02'
     url: "/trident-2502"
-  - version-number: '25.06'
+  - version-number: '25.10'
     url: "/trident"
+  - version-number: '25.06'
+    url: "/trident-2506"
   - version-number: '24.10'
     url: "/trident-2410"
   - version-number: '24.06'
