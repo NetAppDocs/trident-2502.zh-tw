@@ -896,7 +896,6 @@
   <block id="90e5d592b7e0b2afb122e69c00372ddf" category="paragraph">若要使用 Trident 、您需要下列一或多個支援的後端：</block>
   <block id="1d3d126b8a5bad69c46ed03734beed47" category="list-text">NetApp All SAN Array ASA （ESAN）</block>
   <block id="fc1d748db1b5b488ce7af7d17ea15d55" category="inline-link-macro">軟體版本支援</block>
-  <block id="ee19283e867cf4e5840d2811a74b89e5" category="list-text">內部部署 FAS ， AFF 或 ASA R2 叢集版本，受 NetApp 有限支援。請參閱。 <block ref="50931d770a2149cdd08c9f8b08c33f00" category="inline-link-macro-rx"></block></block>
   <block id="6b51834314ece904405eb0ce1a6e6bd8" category="list-text">NetApp HCI / Element軟體11或更新版本</block>
   <block id="e80b6a304e29d5dfcb9150f47d69db94" category="section-title">Trident 支援 KubeVirt 和 OpenShift 虛擬化</block>
   <block id="8f323a9e5c0c5162cc6e0d48e0cb1850" category="paragraph-title">支援的儲存驅動程式：</block>
@@ -4878,7 +4877,6 @@
   <block id="f825c914a8659f5b0de8a9219ab365b6" category="paragraph">若要將新建立的 20MiB PV 調整為 1GiB 、請編輯 PVC 並設定<block ref="02b011e6fe36e26e5f7365ba08bf5a48" prefix=" " category="inline-code"></block>為 1GiB ：</block>
   <block id="4a59ce1bc63fd7e6333968fb4bbd9d45" category="section-title">步驟 4 ：驗證擴充</block>
   <block id="36941664e357e5e47a63d528d3ff49b5" category="paragraph">您可以檢查 PVC 、 PV 和 Trident Volume 的大小、以驗證調整大小是否正常運作：</block>
-  <block id="cf13ba16f33b5f6772614929649be6c2" category="summary">您可以使用將現有儲存磁碟區匯入為 Kubernetes PV<block ref="a768f5449e3a83ac56f2fb8ab4562339" prefix=" " category="inline-code"></block> 。</block>
   <block id="5f48c343984786005c9830d96c6fca87" category="doc">匯入磁碟區</block>
   <block id="2e77d5277311f3a9232a73cdbbcd754b" category="section-title">總覽與考量</block>
   <block id="822f23137373a7a374fd33ef3863c2de" category="paragraph">您可以將磁碟區匯入 Trident 、以便：</block>
@@ -4898,10 +4896,7 @@
   <block id="be303acf01bc566d5d211f228131bee4" category="admonition">如果您想要將Kubernetes用於容器化工作負載、但想要管理Kubernetes以外儲存磁碟區的生命週期、則此選項非常實用。</block>
   <block id="76057e180d7b3edcebaa935c7ccab687" category="list-text">將註釋新增至PVc和PV、這有兩種用途、表示已匯入磁碟區、以及是否管理了PVc和PV。不應修改或移除此附註。</block>
   <block id="db31dcd83fd57b294fb0340ea975015f" category="section-title">匯入 Volume</block>
-  <block id="61a1adebea5e6a017b4bd4b405ae4f52" category="paragraph">您可以使用<block ref="a768f5449e3a83ac56f2fb8ab4562339" prefix=" " category="inline-code"></block>匯入 Volume 。</block>
-  <block id="8feb5f647cb423db7fa8a957ae4ef075" category="list-text">建立永久 Volume Claim （ PVC ）檔案（例如<block ref="88bf8ee4d993e535425148da6a64c1c2" prefix=" " category="inline-code"></block>）、用於建立 PVC 。PVC 文件應包括<block ref="b068931cc450442b63f5b3d276ea4297" prefix=" " category="inline-code"></block>、<block ref="89801e9e98979062e84647433a8ed3e9" prefix=" " category="inline-code"></block>、<block ref="1963d17f24888bdf1f22d7ea7f72f607" prefix=" " category="inline-code"></block>和<block ref="ee822781a3bd0ae0f8f6331dc4865d9c" prefix=" " category="inline-code"></block>。您也可以在 PVC 定義中指定<block ref="c005e78d4bd808038335c32dd84cf7da" prefix=" " category="inline-code"></block>。</block>
   <block id="7f745c89a2e8fd59353bab523e12eb77" category="paragraph">以下是最低規格的範例：</block>
-  <block id="a9e31569460a0b133fdd97c5f482c04e" category="admonition">請勿包含其他參數、例如 PV 名稱或 Volume 大小。這可能會導致匯入命令失敗。</block>
   <block id="7a06039f2c19a8797457cd811e999229" category="list-text">使用<block ref="a768f5449e3a83ac56f2fb8ab4562339" prefix=" " category="inline-code"></block>命令指定 Trident 後端的名稱、該後端包含磁碟區、以及唯一識別儲存區中磁碟區的名稱（例如： ONTAP FlexVol 、 Element Volume 、 Cloud Volumes Service 路徑）。<block ref="5338b151154663bac9980b0f044518f2" prefix=" " category="inline-code"></block>需要引數來指定 PVC 檔案的路徑。</block>
   <block id="37c0e0081d2fa3ebdf688df7e37ecd7a" category="paragraph">請參閱下列 Volume 匯入範例、瞭解支援的驅動程式。</block>
   <block id="b8cd11aae04b2508e6cf401f43cdb4f9" category="section-title">ONTAP NAS 和 ONTAP NAS FlexGroup</block>
@@ -4909,8 +4904,6 @@
   <block id="6551d29114ca8e4ced094b1f68242124" category="list-text"><block ref="caafdf62a2c609bfa5316118231a1007" prefix=" " category="inline-code"></block>驅動程式無法匯入及管理 qtree 。</block>
   <block id="15f21f5d1f84f4b986a4db037c57333d" category="list-text"><block ref="8321592ce24c8a122ecf26a63cfca407" prefix=" " category="inline-code"></block>和<block ref="844e84da8e822b4a33c4d8188da97937" prefix=" " category="inline-code"></block>驅動程式不允許重複的磁碟區名稱。</block>
   <block id="82ffd98bd5aacd62bc72d8aca0f53528" category="paragraph">使用驅動程式建立的每個磁碟區都<block ref="8321592ce24c8a122ecf26a63cfca407" prefix=" " category="inline-code"></block>是 ONTAP 叢集上的 FlexVol volume 。使用驅動程式匯入 FlexVol 磁碟區<block ref="8321592ce24c8a122ecf26a63cfca407" prefix=" " category="inline-code"></block>的運作方式相同。ONTAP 叢集上已存在的 FlexVol Volume 可匯入為<block ref="8321592ce24c8a122ecf26a63cfca407" prefix=" " category="inline-code"></block> PVC 。同樣地、 FlexGroup Vols 也可以匯入為<block ref="844e84da8e822b4a33c4d8188da97937" prefix=" " category="inline-code"></block> PVCS 。</block>
-  <block id="3fa3bc64b029b88f42b842bb7dc4e52d" category="paragraph-title">ONTAP NAS 範例</block>
-  <block id="77fe25c67ee05760d58e91a98e3ff055" category="paragraph">以下是託管 Volume 和非託管 Volume 匯入的範例。</block>
   <block id="865c1a701e3847de9fbff4a375ac7177" category="open-title">託管 Volume</block>
   <block id="9baac1fff2f93c6aa6f2205921fe6b32" category="paragraph">以下範例會匯入在名為的後端上<block ref="b0253ee501e433d48faea12f8e40ef28" prefix=" " category="inline-code"></block>命名的 Volume<block ref="b61fdc0d7fc5d08e674f3891a91d3116" prefix=" " category="inline-code"></block> ：</block>
   <block id="ed12f17a6dc2e65dfdf289eb64d258ae" category="open-title">非託管 Volume</block>
@@ -4919,7 +4912,6 @@
   <block id="548fedaf4074fe2826e3c53dfd92a19e" category="section-title">SAN ONTAP</block>
   <block id="ef40e9c3e0773e9fb6f24b131aa9ba8f" category="paragraph">Trident 支援使用和<block ref="3016c12c1db45f14c80c9c1731b9c26a" prefix=" " category="inline-code"></block>驅動程式進行 Volume 匯入<block ref="73a3350a1b91aeb6e2836fdf5975672c" prefix=" " category="inline-code"></block>。</block>
   <block id="b5556653d8db6b84df68b320ccd5d1a8" category="paragraph">Trident 可以匯入包含單一 LUN 的 ONTAP SAN FlexVol 磁碟區。這與驅動程式一致<block ref="73a3350a1b91aeb6e2836fdf5975672c" prefix=" " category="inline-code"></block>，可為 FlexVol volume 中的每個 PVC 和 LUN 建立 FlexVol volume 。Trident 會匯入 FlexVol volume ，並將其與 PVC 定義相關聯。</block>
-  <block id="854d516b7e1eddbead5cbea0b17dac88" category="paragraph-title">ONTAP SAN 範例</block>
   <block id="76f6a2d1bd679fa4c1b485fed91cd412" category="paragraph">對於託管卷， Trident 將 FlexVol volume 重命名爲格式，並將 FlexVol volume 中的 LUN<block ref="1793051c27c3288cfb3a1c86e4e41b41" prefix=" " category="inline-code"></block> 重命名爲<block ref="b1a57c8f543d163276a264ab84f98485" prefix=" " category="inline-code"></block>。</block>
   <block id="4e0dca66d693b4377c93d787e9d5176a" category="paragraph">下列範例會匯入<block ref="9c263b72b293041bdc16e8711bb55a99" prefix=" " category="inline-code"></block>後端上的 FlexVol volume<block ref="5461c7e570fd7b4318a37f0dceb291c1" prefix=" " category="inline-code"></block> ：</block>
   <block id="d172829ee06c1c52828b60f0544b2f06" category="paragraph">下列範例會匯入<block ref="a5c0fa75ec8cf92d22eadab558660dda" prefix=" " category="inline-code"></block><block ref="2dec4fe0d108047546d031f48f4073f7" prefix=" " category="inline-code"></block>後端：</block>
@@ -4928,7 +4920,6 @@
   <block id="81238a539b4fc11fb20c6d27db1e5d33" category="paragraph"><block ref="81238a539b4fc11fb20c6d27db1e5d33" category="inline-image-macro-rx" type="image"></block></block>
   <block id="df1e93e323319db2375e3d3dad7fb9cc" category="paragraph">Trident 支援使用驅動程式的 NetApp Element 軟體和 NetApp HCI Volume 匯入<block ref="c0d2a793e71b152662b3e8cd2da00620" prefix=" " category="inline-code"></block>。</block>
   <block id="49fdf43d32dad9fda984acfedf0be04f" category="admonition">Element驅動程式支援重複的Volume名稱。不過、如果有重複的磁碟區名稱、 Trident 會傳回錯誤。因應措施是複製磁碟區、提供唯一的磁碟區名稱、然後匯入複製的磁碟區。</block>
-  <block id="d12ef9e4a047861afd11513bde147f35" category="paragraph-title">元素範例</block>
   <block id="e91134286ebcca5f894ca859ce6e6527" category="paragraph">以下示例將在後端導入<block ref="ce9d6be888db333d9f15ad3ca22aab5c" prefix=" " category="inline-code"></block>卷<block ref="54034d50b7e92e0dd9d45b9be754d7bd" prefix=" " category="inline-code"></block>。</block>
   <block id="5c9ef0d871938dccceb29ee63fad8ddb" category="section-title">Google Cloud Platform</block>
   <block id="13bad29adee620ad0bb1075fdf0e45b0" category="paragraph">Trident 支援使用驅動程式進行 Volume 匯入<block ref="5935ea92cdd7d975b4e764b429f21c01" prefix=" " category="inline-code"></block>。</block>
@@ -4937,11 +4928,8 @@
   <block id="dd8d0b5581c0eb32a23d802032124024" category="paragraph">以下範例會在後端<block ref="b242744397b7d8bc9391b3e836628c5e" prefix=" " category="inline-code"></block>以的 Volume 路徑匯入<block ref="5935ea92cdd7d975b4e764b429f21c01" prefix=" " category="inline-code"></block> Volume<block ref="8886a1ac9f5b94f2fb54d752c304777f" prefix=" " category="inline-code"></block> 。</block>
   <block id="781d7167559669ccd02b24925b4be62e" category="paragraph">Trident 支援使用驅動程式進行 Volume 匯入<block ref="bc5779a2d33eeb1304bae57f15920cfc" prefix=" " category="inline-code"></block>。</block>
   <block id="7501988e9549daa8c2fcd13e55b9fc78" category="admonition">若要匯入 Azure NetApp Files Volume 、請依磁碟區路徑識別該磁碟區。Volume 路徑是磁碟區匯出路徑的一部分、位於之後<block ref="fb256b96ee496724e4579987e5a6e4da" prefix=" " category="inline-code"></block>。例如，如果掛載路徑爲，則<block ref="a88065dde27cea3a008a18172c5a9c9e" prefix=" " category="inline-code"></block>卷路徑爲<block ref="062b749476713f7b5bbc675159e90bad" prefix=" " category="inline-code"></block>。</block>
-  <block id="1cfd9b4e20d41cdca62f758d3b0cb58b" category="paragraph-title">Azure NetApp Files 範例</block>
   <block id="bd46b0a8c2c4c89a60ee85052ad2dd0e" category="paragraph">以下示例使用卷路徑<block ref="062b749476713f7b5bbc675159e90bad" prefix=" " category="inline-code"></block>導入<block ref="bc5779a2d33eeb1304bae57f15920cfc" prefix=" " category="inline-code"></block>後端上的卷<block ref="d8dd89ab9d39f5487714722f9becb468" prefix=" " category="inline-code"></block>。</block>
   <block id="aa39e6a781613c350b8408df39aa0171" category="paragraph">Trident 支援使用驅動程式進行 Volume 匯入<block ref="94594b2ccbc8e0d220ad37504461650b" prefix=" " category="inline-code"></block>。</block>
-  <block id="89df083c083e8cfa84ef1517f2b9e609" category="paragraph-title">Google Cloud NetApp Volumes 範例</block>
-  <block id="3312627a317726be3901705d655e8582" category="paragraph">以下示例將使用 Volume<block ref="acdf8df0c694db089171ecaf51f80166" prefix=" " category="inline-code"></block> 在後端導入一個<block ref="94594b2ccbc8e0d220ad37504461650b" prefix=" " category="inline-code"></block> Volume<block ref="c082d32d434314708cccf35dd974ac32" prefix=" " category="inline-code"></block> 。</block>
   <block id="94154cfb6a6056267c34a431cd1a4224" category="paragraph">下列範例會在兩個磁碟區位於同一個區域時匯入<block ref="94594b2ccbc8e0d220ad37504461650b" prefix=" " category="inline-code"></block> Volume ：</block>
   <block id="91df12d96329d2a5cdfb509205e68b38" category="summary">Trident 提供數項功能來管理您的磁碟區。瞭解 Trident 為 Volume 提供的功能。</block>
   <block id="b42cbc6e68075c106b9faa27e4931091" category="doc">執行Volume作業</block>
@@ -5496,4 +5484,33 @@
   <block id="70568f333da28442c152ac2e1f71e1a0" category="sidebar">使用Trident Protect 保護應用程式</block>
   <block id="8545a0d7cdafff8da2dece1a851630dc" category="sidebar">管理Trident Protect</block>
   <block id="83ff2dd2ff6a9ee85daa1b0fefef4019" category="sidebar">使用Trident Protect 管理執行鉤子</block>
+  <block id="60aaccb9d5284a26ba3fa0ce52289c0e" category="list-text">本地部署的 FAS、AFF 或 ASA r2（iSCSI、NVMe/TCP 和 FC）運行 ONTAP 版本，這些版本在 NetApp 完全支援或有限支援下運行。請參閱<block ref="50931d770a2149cdd08c9f8b08c33f00" category="inline-link-macro-rx"></block>。</block>
+  <block id="f45ace2e96672a5ca55ea6bac48b9865" category="admonition">##如果您的應用程式使用多個命名空間，且這些命名空間中存在同名的 PVC，則快照還原作業（無論是就地還原或還原到新命名空間）都將無法正常運作。所有還原的磁碟區將包含相同的資料，而不是每個命名空間對應的正確資料。請使用備份還原而不是快照還原，或升級到 26.02 或更高版本，該版本已修復此問題。##</block>
+  <block id="36a57158e28c15925c88aebde90472b6" category="admonition">執行此命令後，ONTAP 會提示輸入憑證。貼上步驟 1 中產生的<block ref="0c7b1ee06b5fdaab7c83f24275255cf5" prefix=" " category="inline-code"></block>檔案內容，然後輸入<block ref="b1a326c06d88bf042f73d70f50197905" prefix=" " category="inline-code"></block>以完成安裝。</block>
+  <block id="5b8e1e79bf81135afd29cee3f88e8b30" category="summary">您可以使用<block ref="a768f5449e3a83ac56f2fb8ab4562339" prefix=" " category="inline-code"></block>或 PVC 註解將現有儲存磁碟區匯入為 Kubernetes PV。</block>
+  <block id="397460c9fd506a22e7b4c34b8d0d4d7d" category="paragraph">您可以使用<block ref="a768f5449e3a83ac56f2fb8ab4562339" prefix=" " category="inline-code"></block>或透過使用 Trident 匯入註解建立持久性磁碟區宣告（PVC），將現有儲存磁碟區匯入為 Kubernetes PV。</block>
+  <block id="b08d73a7ef39ba9a1b69252df2432d6d" category="paragraph">您可以使用 <block ref="a768f5449e3a83ac56f2fb8ab4562339" prefix=" " category="inline-code"></block> 或透過建立具有 Trident 匯入註解的 PVC 來匯入磁碟區。</block>
+  <block id="cbaac9a260727431dda3844fc89a1f56" category="admonition">如果使用 PVC 註釋，則無需下載或使用<block ref="c67fd1b99934afa248dfeb285a9a4191" prefix=" " category="inline-code"></block>匯入磁碟區。</block>
+  <block id="9f33c2a343cecba4e698e173a72b7205" category="open-title">使用 tridentctl</block>
+  <block id="dc2ba8519acbce5371c3c73e23b848da" category="list-text">建立 PVC 檔案（例如<block ref="88bf8ee4d993e535425148da6a64c1c2" prefix=" " category="inline-code"></block>），用於建立 PVC。PVC 檔案應包含<block ref="b068931cc450442b63f5b3d276ea4297" prefix=" " category="inline-code"></block>、<block ref="89801e9e98979062e84647433a8ed3e9" prefix=" " category="inline-code"></block>、<block ref="1963d17f24888bdf1f22d7ea7f72f607" prefix=" " category="inline-code"></block>和<block ref="ee822781a3bd0ae0f8f6331dc4865d9c" prefix=" " category="inline-code"></block>。您也可以在 PVC 定義中指定<block ref="c005e78d4bd808038335c32dd84cf7da" prefix=" " category="inline-code"></block>。</block>
+  <block id="3830f157276a56250bf76ff75b8cff68" category="admonition">僅包含必需參數。其他參數（例如 PV 名稱或磁碟區大小）可能會導致匯入命令失敗。</block>
+  <block id="088199d1debc901b2e9436960c656998" category="open-title">使用 PVC 註釋</block>
+  <block id="746a5142790411babd49bcf9a3e4b947" category="list-text">建立一個 PVC YAML 檔案（例如，<block ref="88bf8ee4d993e535425148da6a64c1c2" prefix=" " category="inline-code"></block>），其中包含所需的 Trident 匯入註解。PVC 檔案應包含：</block>
+  <block id="c5af1b1587b493f72559330872964fe5" category="list-text"><block ref="b068931cc450442b63f5b3d276ea4297" prefix="" category="inline-code"></block> 和 <block ref="89801e9e98979062e84647433a8ed3e9" prefix=" " category="inline-code"></block> 在中繼資料中</block>
+  <block id="d305a0a83c85bbd5ad5d69d2717694ac" category="list-text"><block ref="1963d17f24888bdf1f22d7ea7f72f607" prefix="" category="inline-code"></block>、<block ref="0a36a88c4bcbae4c6ef55004d652aba3" prefix=" " category="inline-code"></block> 和 <block ref="ee822781a3bd0ae0f8f6331dc4865d9c" prefix=" " category="inline-code"></block> 在規格中</block>
+  <block id="0ff8f09564f199f14ff7a19d17eeab3e" category="list-text">註釋：</block>
+  <block id="38cfc99fbbb0ca3eb7dfec7a76498ade" category="list-text"><block ref="2b57591dab2fd7e62891330cb5c08e04" prefix="" category="inline-code"></block>：後端的磁碟區名稱</block>
+  <block id="35ab5de095ed9aa55079aab648067876" category="list-text"><block ref="c7715ec18c9136486b59fd3ecb8b4728" prefix="" category="inline-code"></block>：磁碟區所在的後端 UUID</block>
+  <block id="652807bc698e3601f704586910f8f354" category="list-text"><block ref="cc636a9cad634dcc341d49da1bb224db" prefix="" category="inline-code"></block>（可選）：設定為<block ref="ebc576222020c2a2ae2fc769169f1d2a" prefix=" " category="inline-code"></block>表示非託管磁碟區。預設為 <block ref="c07fbc0b2a1a865fe9e3a55c05b4f690" prefix=" " category="inline-code"></block>。</block>
+  <block id="2c9db1af51ac3e6429befaccc4a28946" category="paragraph">以下是匯入託管磁碟區的範例規格：</block>
+  <block id="de88eae0ff40e6781524bc7c680fc27d" category="list-text">將 PVC YAML 檔案套用到您的 Kubernetes 叢集：</block>
+  <block id="04861a760059dbbada499fbe4c3ef328" category="paragraph">Trident 會自動匯入磁碟區並將其繫結至 PVC。</block>
+  <block id="96eb863539228447aee795db4a9ef144" category="paragraph-title">使用 tridentctl 的 ONTAP NAS 範例</block>
+  <block id="06c358feef346225dd8f00164106a052" category="paragraph">以下範例展示如何使用<block ref="c67fd1b99934afa248dfeb285a9a4191" prefix=" " category="inline-code"></block>匯入託管磁碟區和非託管磁碟區。</block>
+  <block id="566544cc9547e874249525434ef6b92c" category="paragraph-title">使用 PVC 註解的 ONTAP NAS 範例</block>
+  <block id="ecc356799a42045ed6a6397f3f280cd2" category="paragraph">以下範例展示如何使用 PVC 註解匯入託管和非託管磁碟區。</block>
+  <block id="cd8b45d6d96bb528f04c3ce2788b337d" category="paragraph">以下範例從後端<block ref="ac181edf7a7be1f8ae6a6b0ac4a71686" prefix=" " category="inline-code"></block>匯入一個名為<block ref="47068649001b68b4aba2f4219a2f981b" prefix=" " category="inline-code"></block>的 1GiB<block ref="8321592ce24c8a122ecf26a63cfca407" prefix=" " category="inline-code"></block> 磁碟區，並使用 PVC 註解設定了 RWO 存取模式：</block>
+  <block id="6aa655b386a1e31c420fd6553ed2b4fc" category="paragraph">以下範例從後端<block ref="4bafc897a4f30b09156a60d3350c8819" prefix=" " category="inline-code"></block>匯入名為<block ref="a8aa3f9da25a5d21fdd26c0a26592e1e" prefix=" " category="inline-code"></block>的 1Gi<block ref="8321592ce24c8a122ecf26a63cfca407" prefix=" " category="inline-code"></block> 磁碟區，並使用 PVC 註解設定 RWO 存取模式：</block>
+  <block id="3a175f8153aad5b64492df6eadb5a5af" category="paragraph">以下範例展示如何匯入託管和非託管磁碟區：</block>
+  <block id="ae3918e109e702f2d03b5027de8a73eb" category="paragraph">以下範例使用磁碟區 <block ref="acdf8df0c694db089171ecaf51f80166" prefix=" " category="inline-code"></block> 從後端 <block ref="c082d32d434314708cccf35dd974ac32" prefix=" " category="inline-code"></block> 匯入磁碟區。</block>
 </blocks>
