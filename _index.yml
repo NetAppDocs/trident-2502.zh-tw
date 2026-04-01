@@ -1,13 +1,16 @@
 ---
 indexpage:
+  title: Trident 25.02 文件
+  summary: Trident 是由 NetApp 維護的開放原始碼儲存資源配置程式與協調程式。它可讓您為Docker和Kubernetes所管理的容器化應用程式建立儲存磁碟區。**
+    請閱讀版本說明、以取得升級至 Trident 25.02.** 的重要資訊
+  keywords: trident, documentation, trident release notes, get started, deploy, upgrade,
+    use, trident protect, 2502
   lead: Trident 是由 NetApp 維護的開放原始碼儲存資源配置程式與協調程式。它可讓您為Docker和Kubernetes所管理的容器化應用程式建立儲存磁碟區。
   tiles:
   - title: 版本資訊
     links:
     - title: 新功能
       url: trident-rn.html
-    - title: 舊版
-      url: "/earlier-versions.html"
   - title: 開始使用
     links:
     - title: 瞭解 Trident
